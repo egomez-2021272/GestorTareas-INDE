@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "wM8RBdF3O+A=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\rgome\\Documents\\IN6AM\\GestorTareas-INDE\\task-manager-INDE\\task-service\\src\\TaskService.Domain\\TaskService.Domain.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\rgome\\.nuget\\packages\\system.componentmodel.annotations\\5.0.0\\system.componentmodel.annotations.5.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

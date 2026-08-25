@@ -1,0 +1,16 @@
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\bin\Debug\net8.0\TaskService.Persistence.deps.json
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\bin\Debug\net8.0\TaskService.Persistence.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\bin\Debug\net8.0\TaskService.Persistence.pdb
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\bin\Debug\net8.0\TaskService.Domain.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\bin\Debug\net8.0\TaskService.Domain.pdb
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.csproj.AssemblyReference.cache
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.AssemblyInfoInputs.cache
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.AssemblyInfo.cs
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.csproj.CoreCompileInputs.cache
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.sourcelink.json
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskServ.44839E92.Up2Date
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\refint\TaskService.Persistence.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\TaskService.Persistence.pdb
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Persistence\obj\Debug\net8.0\ref\TaskService.Persistence.dll
