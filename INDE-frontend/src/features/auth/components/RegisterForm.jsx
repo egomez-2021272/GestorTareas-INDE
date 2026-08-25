@@ -5,19 +5,17 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LogoInde from '../../../assets/img/indelogo.png';
 
-export const LoginForm = () => {
+export const RegisterForm = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
-  const { login, loading } = useAuthStore();
+  const { registerUser, loading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const onSubmit = async (data) => {
-    const result = await login(data);
+    const result = await registerUser(data);
 
     if (result.success) {
-      // Normalmente aquí navegarías al dashboard
-      // navigate('/dashboard');
-      console.log('Login successful');
+      navigate('/login');
     }
   };
 
@@ -50,27 +48,39 @@ export const LoginForm = () => {
         </svg>
       </div>
 
-      <div className="z-10 text-center mb-8">
+      <div className="z-10 text-center mb-6">
         <h1 className="text-[28px] font-medium text-[#e2e8f0] mb-1 tracking-normal">Gestor de Tareas INDE</h1>
-        <p className="text-[#848b98] text-[15px] font-normal">Acceso Seguro</p>
+        <p className="text-[#848b98] text-[15px] font-normal">Crear una cuenta</p>
       </div>
 
-      <div className="z-10 w-full max-w-[360px] bg-[#22252a] rounded-[10px] border border-[#3b3e46] shadow-2xl p-8 pb-10">
-        <div className="flex justify-center mb-8 items-center">
-          <img src={LogoInde} alt="Logo INDE" className="w-full max-w-[200px] h-auto object-contain block mx-auto" />
+      <div className="z-10 w-full max-w-[360px] bg-[#22252a] rounded-[10px] border border-[#3b3e46] shadow-2xl p-8 pb-8">
+        <div className="flex justify-center mb-6 items-center">
+          <img src={LogoInde} alt="Logo INDE" className="w-full max-w-[160px] h-auto object-contain block mx-auto" />
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-medium text-[#e2e8f0] block">Nombre completo</label>
+            <input type="text" placeholder="Tu nombre" {...register('name', { required: 'El nombre es requerido' })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 outline-none transition-all placeholder:text-gray-500 text-sm" />
+            {errors.name && <span className="text-red-400 text-xs">{errors.name.message}</span>}
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-[13px] font-medium text-[#e2e8f0] block">Username</label>
             <input type="text" placeholder="Username" {...register('username', { required: 'El usuario es requerido' })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 outline-none transition-all placeholder:text-gray-500 text-sm" />
             {errors.username && <span className="text-red-400 text-xs">{errors.username.message}</span>}
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-medium text-[#e2e8f0] block">Email</label>
+            <input type="email" placeholder="correo@ejemplo.com" {...register('email', { required: 'El email es requerido', pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Dirección de correo inválida' } })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 outline-none transition-all placeholder:text-gray-500 text-sm" />
+            {errors.email && <span className="text-red-400 text-xs">{errors.email.message}</span>}
+          </div>
+
           <div className="space-y-1.5 relative">
             <label className="text-[13px] font-medium text-[#e2e8f0] block">Password</label>
             <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} placeholder="Password" {...register('password', { required: 'La contraseña es requerida' })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 pr-10 outline-none transition-all placeholder:text-gray-500 text-sm" />
+              <input type={showPassword ? 'text' : 'password'} placeholder="Password" {...register('password', { required: 'La contraseña es requerida', minLength: { value: 6, message: 'La contraseña debe tener al menos 6 caracteres' } })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 pr-10 outline-none transition-all placeholder:text-gray-500 text-sm" />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -79,17 +89,14 @@ export const LoginForm = () => {
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-[#005b70] hover:bg-[#004a5c] text-white font-medium rounded-md py-[10px] mt-6 transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#22252a] focus:ring-[#005b70] disabled:opacity-70">
-            {loading ? 'Validando...' : 'Log In'}
+            {loading ? 'Registrando...' : 'Registrarse'}
           </button>
         </form>
 
-        <div className="mt-6 flex flex-col items-center space-y-3 text-center">
-          <Link to="/forgot-password" className="text-[13px] text-gray-400 hover:text-white transition-colors">
-            ¿Olvidaste tu contraseña?
+        <div className="mt-4 text-center">
+          <Link to="/login" className="text-[13px] text-gray-400 hover:text-white transition-colors">
+            ¿Ya tienes una cuenta? Inicia sesión
           </Link>
-          <div className="text-[13px] text-gray-500">
-            ¿No tienes cuenta? <Link to="/register" className="text-[#005b70] hover:text-[#007b97] font-medium transition-colors">Regístrate</Link>
-          </div>
         </div>
       </div>
     </div>

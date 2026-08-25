@@ -26,3 +26,46 @@ export const loginRequest = async ({ username, password }) => {
     }, 1000);
   });
 };
+
+export const registerRequest = async ({ name, username, email, password }) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (username && email && password) {
+        resolve({
+          data: {
+            message: 'Usuario registrado exitosamente',
+            data: {
+              user: { id: 2, username, email, name: name || username, role: 'USER_ROLE' }
+            }
+          }
+        });
+      } else {
+        reject({
+          response: {
+            data: { message: 'Por favor complete todos los campos requeridos' }
+          }
+        });
+      }
+    }, 1000);
+  });
+};
+
+export const resetPasswordRequest = async ({ email }) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (email) {
+        resolve({
+          data: {
+            message: 'Instrucciones enviadas a tu correo electrónico'
+          }
+        });
+      } else {
+        reject({
+          response: {
+            data: { message: 'Por favor ingresa un correo electrónico válido' }
+          }
+        });
+      }
+    }, 1000);
+  });
+};
