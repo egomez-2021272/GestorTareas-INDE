@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: task_container
+    environment:
+      POSTGRES_USER: TASKT
+      POSTGRES_PASSWORD: 3d1f1c10C3ntr!$*//
+      POSTGRES_DB: task_DB
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
