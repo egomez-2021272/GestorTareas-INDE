@@ -1,0 +1,16 @@
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\bin\Debug\net8.0\TaskService.Application.deps.json
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\bin\Debug\net8.0\TaskService.Application.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\bin\Debug\net8.0\TaskService.Application.pdb
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\bin\Debug\net8.0\TaskService.Domain.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\bin\Debug\net8.0\TaskService.Domain.pdb
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.csproj.AssemblyReference.cache
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.AssemblyInfoInputs.cache
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.AssemblyInfo.cs
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.csproj.CoreCompileInputs.cache
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.sourcelink.json
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskServ.82EEA97C.Up2Date
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\refint\TaskService.Application.dll
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\TaskService.Application.pdb
+C:\Users\rgome\Documents\IN6AM\GestorTareas-INDE\task-manager-INDE\task-service\src\TaskService.Application\obj\Debug\net8.0\ref\TaskService.Application.dll
