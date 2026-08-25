@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 // CORRECCIÓN: Ajustamos la ruta para importar el mock
-import { loginRequest } from '../../../shared/apis/authMock';
+import { loginRequest, registerRequest, resetPasswordRequest } from '../../../shared/apis/authMock';
 import toast from 'react-hot-toast';
 
 export const useAuthStore = create(
@@ -39,6 +39,38 @@ export const useAuthStore = create(
           toast.error(message);
           return { success: false, error: message };
           
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      registerUser: async (userData) => {
+        try {
+          set({ loading: true, error: null });
+          const { data } = await registerRequest(userData);
+          toast.success(data.message);
+          return { success: true };
+        } catch (err) {
+          const message = err.response?.data?.message || 'Error al registrar usuario';
+          set({ error: message });
+          toast.error(message);
+          return { success: false, error: message };
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      resetPassword: async (email) => {
+        try {
+          set({ loading: true, error: null });
+          const { data } = await resetPasswordRequest({ email });
+          toast.success(data.message);
+          return { success: true };
+        } catch (err) {
+          const message = err.response?.data?.message || 'Error al restablecer contraseña';
+          set({ error: message });
+          toast.error(message);
+          return { success: false, error: message };
         } finally {
           set({ loading: false });
         }
