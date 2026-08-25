@@ -1,0 +1,160 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Paleta principal INDE */
+  --color-inde-cyan: #0aa5b5;           /* Botones principales y acentos */
+  --color-inde-cyan-hover: #22c1d3;     /* Hover para botones */
+  --color-inde-bg-dark: #12141a;        /* Fondo principal (App y Login) */
+  --color-inde-panel: #20242d;          /* Fondo de modales, columnas y sidebar */
+  --color-inde-panel-light: #2a2f3a;    /* Tarjetas de tareas y hover en sidebar */
+  
+  /* Colores de estado (Desaturados y mates) */
+  --color-inde-red: #c95d5d;            /* Alta Tensión */
+  --color-inde-yellow: #c0914e;         /* Urgente */
+  --color-inde-green: #669a71;          /* Mantenimiento / Completado */
+  
+  /* Textos y bordes */
+  --color-inde-text-main: #e2e8f0;      /* Texto principal claro */
+  --color-inde-text-muted: #94a3b8;     /* Texto secundario (descripciones, fechas) */
+  --color-inde-border: #333a47;         /* Separadores y bordes de inputs */
+}
+
+:root {
+  /* Se recomienda Inter o Roboto para este diseño técnico */
+  font-family: 'Inter', Roboto, Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  
+  /* Variables nativas reflejadas */
+  --inde-cyan: #0aa5b5;
+  --inde-cyan-hover: #22c1d3;
+  --inde-bg-dark: #12141a;
+  --inde-panel: #20242d;
+  --inde-panel-light: #2a2f3a;
+  --inde-red: #c95d5d;
+  --inde-green: #669a71;
+  --inde-yellow: #c0914e;
+  --inde-text-main: #e2e8f0;
+  --inde-text-muted: #94a3b8;
+  --inde-border: #333a47;
+  
+  /* Gradientes sobrios para fondos decorativos o el Login */
+  --inde-gradient: linear-gradient(135deg, #20242d 0%, #171920 50%, #12141a 100%);
+  --inde-btn-gradient: linear-gradient(135deg, #0aa5b5 0%, #067e8b 100%);
+
+  /* Aplicación base al documento */
+  color: var(--inde-text-main);
+  background-color: var(--inde-bg-dark);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+.inde-dashboard-layout {
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .inde-dashboard-layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out;
+}
+
+.animate-fadeInScale {
+  animation: fadeInScale 0.2s ease-out;
+}
+
+/* Spinner adaptado al color primario */
+.inde-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(10, 165, 181, 0.15); /* Borde semitransparente base */
+  border-top-color: var(--inde-cyan);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Nav link activo para el Sidebar (Estilo de borde lateral) */
+.inde-nav-active {
+  background: var(--inde-panel-light);
+  color: var(--inde-cyan) !important;
+  border-left: 4px solid var(--inde-cyan);
+}
+
+/* 
+  Estilos adicionales sugeridos para las etiquetas (Chips) del tablero Kanban.
+  Usan fondo con baja opacidad y texto del color sólido para que no sature.
+*/
+.badge-alta-tension {
+  background-color: rgba(201, 93, 93, 0.15);
+  color: var(--inde-red);
+  border: 1px solid rgba(201, 93, 93, 0.3);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+
+.badge-urgente {
+  background-color: rgba(192, 145, 78, 0.15);
+  color: var(--inde-yellow);
+  border: 1px solid rgba(192, 145, 78, 0.3);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
+
+.badge-mantenimiento {
+  background-color: rgba(102, 154, 113, 0.15);
+  color: var(--inde-green);
+  border: 1px solid rgba(102, 154, 113, 0.3);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+}
