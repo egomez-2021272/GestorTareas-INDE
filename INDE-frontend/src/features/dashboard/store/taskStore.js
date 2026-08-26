@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import axios from "axios";
+import { useAuthStore } from "../../auth/store/authStore";
 
 const API_URL = "http://localhost:5214/api";
 
@@ -59,7 +60,12 @@ export const useTaskStore = create((set, get) => ({
     set({ loading: true });
     try {
       await get().fetchTags();
-      const response = await axios.get(`${API_URL}/tasks`, { timeout: 3000 });
+      const { user } = useAuthStore.getState();
+      let url = `${API_URL}/tasks`;
+      if (user && user.role !== 'ADMIN_ROLE') {
+        url += `?userId=${user.id}`;
+      }
+      const response = await axios.get(url, { timeout: 3000 });
       set({ tasks: response.data, backendConnected: true });
     } catch (error) {
       console.warn(
@@ -73,7 +79,9 @@ export const useTaskStore = create((set, get) => ({
   },
 
   addTask: async (taskData) => {
-    const { title, description, status, tagIds } = taskData;
+    const { title, description, status, tagIds, userId } = taskData;
+    const { user } = useAuthStore.getState();
+    const targetUserId = userId || user?.id;
 
     // Generar objeto local temporal
     const localId = crypto.randomUUID
@@ -86,6 +94,7 @@ export const useTaskStore = create((set, get) => ({
       title,
       description,
       status: status || "ToDo",
+      userId: targetUserId,
       createdAt: new Date().toISOString(),
       tags: associatedTags,
     };
@@ -100,6 +109,7 @@ export const useTaskStore = create((set, get) => ({
           title,
           description,
           status: status || "ToDo",
+          userId: targetUserId,
         });
 
         const createdTask = response.data;
@@ -122,7 +132,7 @@ export const useTaskStore = create((set, get) => ({
   },
 
   updateTask: async (id, updatedFields) => {
-    const { title, description, status, tagIds } = updatedFields;
+    const { title, description, status, tagIds, userId } = updatedFields;
 
     // Actualizar localmente
     set((state) => ({
@@ -131,7 +141,7 @@ export const useTaskStore = create((set, get) => ({
           const associatedTags = state.tags.filter((tg) =>
             tagIds?.includes(tg.id),
           );
-          return { ...t, title, description, status, tags: associatedTags };
+          return { ...t, title, description, status, userId, tags: associatedTags };
         }
         return t;
       }),
@@ -144,6 +154,7 @@ export const useTaskStore = create((set, get) => ({
           title,
           description,
           status,
+          userId,
         });
 
         // Obtener la tarea actual de la base de datos para ver sus etiquetas anteriores

@@ -5,7 +5,7 @@ namespace TaskService.Domain.Interfaces;
 public interface ITaskRepository
 {
     
-    Task<IEnumerable<TaskItem>> GetAllTasksAsync();
+    Task<IEnumerable<TaskItem>> GetAllTasksAsync(Guid? userId = null);
     Task<TaskItem?> GetTaskByIdAsync(Guid id);
     Task AddTaskAsync(TaskItem task);
     void UpdateTask(TaskItem task);
