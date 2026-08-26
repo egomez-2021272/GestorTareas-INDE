@@ -60,9 +60,15 @@ export const RegisterForm = () => {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-[13px] font-medium text-[#e2e8f0] block">Nombre completo</label>
-            <input type="text" placeholder="Tu nombre" {...register('name', { required: 'El nombre es requerido' })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 outline-none transition-all placeholder:text-gray-500 text-sm" />
-            {errors.name && <span className="text-red-400 text-xs">{errors.name.message}</span>}
+            <label className="text-[13px] font-medium text-[#e2e8f0] block">Nombre</label>
+            <input type="text" placeholder="Tu nombre" {...register('firstName', { required: 'El nombre es requerido', minLength: { value: 2, message: 'Ingresa al menos 2 caracteres' } })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 outline-none transition-all placeholder:text-gray-500 text-sm" />
+            {errors.firstName && <span className="text-red-400 text-xs">{errors.firstName.message}</span>}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-medium text-[#e2e8f0] block">Apellido</label>
+            <input type="text" placeholder="Tu apellido" {...register('surname', { required: 'El apellido es requerido', minLength: { value: 2, message: 'Ingresa al menos 2 caracteres' } })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 outline-none transition-all placeholder:text-gray-500 text-sm" />
+            {errors.surname && <span className="text-red-400 text-xs">{errors.surname.message}</span>}
           </div>
 
           <div className="space-y-1.5">
@@ -80,12 +86,20 @@ export const RegisterForm = () => {
           <div className="space-y-1.5 relative">
             <label className="text-[13px] font-medium text-[#e2e8f0] block">Password</label>
             <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} placeholder="Password" {...register('password', { required: 'La contraseña es requerida', minLength: { value: 6, message: 'La contraseña debe tener al menos 6 caracteres' } })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 pr-10 outline-none transition-all placeholder:text-gray-500 text-sm" />
+              <input type={showPassword ? 'text' : 'password'} placeholder="Password" {...register('password', { required: 'La contraseña es requerida', minLength: { value: 8, message: 'La contraseña debe tener al menos 8 caracteres' } })} className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 pr-10 outline-none transition-all placeholder:text-gray-500 text-sm" />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.password && <span className="text-red-400 text-xs">{errors.password.message}</span>}
+          </div>
+
+          <div className="space-y-1">
+            <label className="flex items-start gap-2 text-[12px] text-gray-300 cursor-pointer">
+              <input type="checkbox" {...register('acceptTerms', { required: 'Debes aceptar los términos y condiciones' })} className="mt-0.5 accent-[#005b70]" />
+              <span>Acepto los términos y condiciones.</span>
+            </label>
+            {errors.acceptTerms && <span className="text-red-400 text-xs">{errors.acceptTerms.message}</span>}
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-[#005b70] hover:bg-[#004a5c] text-white font-medium rounded-md py-[10px] mt-6 transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#22252a] focus:ring-[#005b70] disabled:opacity-70">
