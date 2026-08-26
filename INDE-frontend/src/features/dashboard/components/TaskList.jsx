@@ -60,6 +60,11 @@ const TaskCard = ({ task, isCompleted, onSelect, users }) => {
   const { user: currentUser } = useAuthStore();
   
   const getAssignedName = () => {
+    if (task.assignedToName) {
+      if (task.userId === currentUser?.id) return "Asignado a mí";
+      return `Asignado a: ${task.assignedToName}`;
+    }
+    
     if (!task.userId) return null;
     if (task.userId === currentUser?.id) return "Asignado a mí";
     if (users && users.length > 0) {

@@ -6,4 +6,5 @@ public class CreateTaskDto
     public string Description { get; set; } = string.Empty;
     public string Status { get; set; } = "ToDo";
     public Guid? UserId { get; set; }
+    public string? AssignedToName { get; set; }
 }

@@ -4,11 +4,13 @@ import { useAuthStore } from '../store/authStore';
 import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import LogoInde from '../../../assets/img/indelogo.png';
+import { TermsModal } from './TermsModal';
 
 export const RegisterForm = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const { registerUser, loading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const onSubmit = async (data) => {
@@ -97,7 +99,9 @@ export const RegisterForm = () => {
           <div className="space-y-1">
             <label className="flex items-start gap-2 text-[12px] text-gray-300 cursor-pointer">
               <input type="checkbox" {...register('acceptTerms', { required: 'Debes aceptar los términos y condiciones' })} className="mt-0.5 accent-[#005b70]" />
-              <span>Acepto los términos y condiciones.</span>
+              <span>
+                Acepto los <button type="button" onClick={(e) => { e.preventDefault(); setIsTermsModalOpen(true); }} className="text-[#0aa5b5] hover:underline focus:outline-none">términos y condiciones</button>.
+              </span>
             </label>
             {errors.acceptTerms && <span className="text-red-400 text-xs">{errors.acceptTerms.message}</span>}
           </div>
@@ -113,6 +117,8 @@ export const RegisterForm = () => {
           </Link>
         </div>
       </div>
+      
+      <TermsModal isOpen={isTermsModalOpen} onClose={() => setIsTermsModalOpen(false)} />
     </div>
   );
 };

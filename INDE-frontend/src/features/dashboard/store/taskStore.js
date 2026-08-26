@@ -6,38 +6,12 @@ const API_URL = "http://localhost:5214/api";
 
 // Semilla exacta del backend de .NET Core (DataSeeder.cs)
 const INITIAL_MOCK_TAGS = [
-  { id: "t1-tag-uuid", name: "Personal", color: "#669a71" }, // Verde de la paleta
-  { id: "t2-tag-uuid", name: "Trabajo", color: "#c95d5d" }, // Rojo de la paleta
-  { id: "t3-tag-uuid", name: "Importante", color: "#c0914e" }, // Amarillo de la paleta
+  { id: "t1-tag-uuid", name: "No urge", color: "#669a71" }, // Verde
+  { id: "t2-tag-uuid", name: "Urgente", color: "#c95d5d" }, // Rojo
+  { id: "t3-tag-uuid", name: "Medio urge", color: "#c0914e" }, // Amarillo
 ];
 
-const INITIAL_MOCK_TASKS = [
-  {
-    id: "task-1-uuid",
-    title: "Diseñar base de datos",
-    description: "Definir tablas y relaciones para el gestor de tareas.",
-    status: "Completed", // TaskStatus.Completed = 4
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    tags: [INITIAL_MOCK_TAGS[1], INITIAL_MOCK_TAGS[2]], // Trabajo, Importante
-  },
-  {
-    id: "task-2-uuid",
-    title: "Implementar Controladores en .NET Core",
-    description:
-      "Desarrollar controladores TasksController y TagsController para la API.",
-    status: "InProgress", // TaskStatus.InProgress = 2
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    tags: [INITIAL_MOCK_TAGS[1]], // Trabajo
-  },
-  {
-    id: "task-3-uuid",
-    title: "Configurar Docker y PostgreSQL",
-    description: "Escribir el docker-compose y verificar conexión.",
-    status: "ToDo", // TaskStatus.ToDo = 1
-    createdAt: new Date().toISOString(),
-    tags: [INITIAL_MOCK_TAGS[0]], // Personal
-  },
-];
+const INITIAL_MOCK_TASKS = [];
 
 export const useTaskStore = create((set, get) => ({
   tasks: INITIAL_MOCK_TASKS,
@@ -62,12 +36,19 @@ export const useTaskStore = create((set, get) => ({
       await get().fetchTags();
       const { user } = useAuthStore.getState();
       let url = `${API_URL}/tasks`;
-      if (user && user.role !== 'ADMIN_ROLE') {
-        url += `?userId=${user.id}`;
+
+      if (user && user.role !== "ADMIN_ROLE") {
+        url = `${API_URL}/tasks?userId=${user.id}`;
       }
+
       const response = await axios.get(url, { timeout: 3000 });
       set({ tasks: response.data, backendConnected: true });
     } catch (error) {
+      if (error.response && error.response.status === 401) {
+        localStorage.removeItem('auth-storage-inde');
+        window.location.href = '/login';
+        return;
+      }
       console.warn(
         "Backend desconectado al obtener tareas. Usando locales.",
         error.message,
@@ -80,8 +61,20 @@ export const useTaskStore = create((set, get) => ({
 
   addTask: async (taskData) => {
     const { title, description, status, tagIds, userId } = taskData;
-    const { user } = useAuthStore.getState();
+    const { user, users } = useAuthStore.getState();
     const targetUserId = userId || user?.id;
+
+    // Obtener el nombre del usuario asignado
+    let assignedToName = null;
+    if (users && users.length > 0) {
+      const foundUser = users.find(u => (u.id || u._id) === targetUserId);
+      if (foundUser) {
+        assignedToName = foundUser.firstName + (foundUser.surname ? ' ' + foundUser.surname : '');
+      }
+    }
+    if (!assignedToName && targetUserId === user?.id) {
+      assignedToName = user?.name || user?.firstName;
+    }
 
     // Generar objeto local temporal
     const localId = crypto.randomUUID
@@ -95,6 +88,7 @@ export const useTaskStore = create((set, get) => ({
       description,
       status: status || "ToDo",
       userId: targetUserId,
+      assignedToName,
       createdAt: new Date().toISOString(),
       tags: associatedTags,
     };
@@ -110,6 +104,7 @@ export const useTaskStore = create((set, get) => ({
           description,
           status: status || "ToDo",
           userId: targetUserId,
+          assignedToName,
         });
 
         const createdTask = response.data;
@@ -133,6 +128,19 @@ export const useTaskStore = create((set, get) => ({
 
   updateTask: async (id, updatedFields) => {
     const { title, description, status, tagIds, userId } = updatedFields;
+    const { user, users } = useAuthStore.getState();
+
+    // Obtener el nombre del usuario asignado
+    let assignedToName = null;
+    if (users && users.length > 0) {
+      const foundUser = users.find(u => (u.id || u._id) === userId);
+      if (foundUser) {
+        assignedToName = foundUser.firstName + (foundUser.surname ? ' ' + foundUser.surname : '');
+      }
+    }
+    if (!assignedToName && userId === user?.id) {
+      assignedToName = user?.name || user?.firstName;
+    }
 
     // Actualizar localmente
     set((state) => ({
@@ -141,7 +149,7 @@ export const useTaskStore = create((set, get) => ({
           const associatedTags = state.tags.filter((tg) =>
             tagIds?.includes(tg.id),
           );
-          return { ...t, title, description, status, userId, tags: associatedTags };
+          return { ...t, title, description, status, userId, assignedToName, tags: associatedTags };
         }
         return t;
       }),
@@ -155,6 +163,7 @@ export const useTaskStore = create((set, get) => ({
           description,
           status,
           userId,
+          assignedToName,
         });
 
         // Obtener la tarea actual de la base de datos para ver sus etiquetas anteriores

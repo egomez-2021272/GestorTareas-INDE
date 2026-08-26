@@ -12,6 +12,7 @@ public class TaskItem
     public DateTime? UpdatedAt { get; set; }
 
     public Guid? UserId { get; set; }
+    public string? AssignedToName { get; set; }
     public ICollection<Tag> Tags { get; set; } = new List<Tag>();
 }
 //Representa una tarjeta o la tarea en un tablero

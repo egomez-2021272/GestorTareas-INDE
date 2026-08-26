@@ -9,12 +9,11 @@ import {
   LogOut,
   Plus,
   X,
-  Tag as TagIcon,
-  Trash2,
-  AlertCircle,
-  FileText,
+  Menu,
+  Users
 } from "lucide-react";
 import LogoInde from "../../../assets/img/indelogo.png";
+import { UsersTab } from "../components/UsersTab";
 
 export const Dashboard = () => {
   const { user, logout, users, fetchUsers } = useAuthStore();
@@ -22,7 +21,8 @@ export const Dashboard = () => {
     useTaskStore();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, tasks
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, tasks, users
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Para mobile
   const [selectedTask, setSelectedTask] = useState(null); // Para modal de detalles
   const [isCreateOpen, setIsCreateOpen] = useState(false); // Sidebar de creación
 
@@ -133,31 +133,51 @@ export const Dashboard = () => {
 
   return (
     <div className="inde-dashboard-layout bg-[#12141a] min-h-screen text-[#e2e8f0]">
-      <aside className="bg-[#20242d] border-r border-[#333a47] flex flex-col justify-between py-6 px-4 md:fixed md:w-[260px] md:h-screen z-10">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`bg-[#20242d] border-r border-[#333a47] flex flex-col justify-between py-6 px-4 fixed h-screen w-[260px] z-50 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div>
-          <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center justify-between md:justify-center mb-8 px-2">
             <img
               src={LogoInde}
               alt="INDE Logo"
-              className="h-15 object-contain"
+              className="h-10 md:h-15 object-contain"
             />
+            <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
+              <X size={24} />
+            </button>
           </div>
 
           <nav className="space-y-1">
             <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "dashboard" ? "inde-nav-active text-white font-semibold" : ""}`}
+              onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "dashboard" ? "inde-nav-active text-white font-semibold bg-[#2a2f3a]" : ""}`}
             >
               <BarChart3 size={18} />
               <span>Dashboard</span>
             </button>
             <button
-              onClick={() => setActiveTab("tasks")}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "tasks" ? "inde-nav-active text-white font-semibold" : ""}`}
+              onClick={() => { setActiveTab("tasks"); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "tasks" ? "inde-nav-active text-white font-semibold bg-[#2a2f3a]" : ""}`}
             >
               <CheckSquare size={18} />
               <span>Tareas</span>
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => { setActiveTab("users"); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "users" ? "inde-nav-active text-white font-semibold bg-[#2a2f3a]" : ""}`}
+              >
+                <Users size={18} />
+                <span>Usuarios</span>
+              </button>
+            )}
           </nav>
         </div>
 
@@ -173,32 +193,38 @@ export const Dashboard = () => {
       </aside>
 
       {/* MAIN CONTAINER */}
-      <main className="md:ml-[260px] p-6 lg:p-8 flex flex-col min-h-screen">
+      <main className="md:ml-[260px] p-4 md:p-6 lg:p-8 flex flex-col min-h-screen">
         {/* HEADER */}
-        <header className="flex justify-between items-center pb-6 mb-6 border-b border-[#333a47]">
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-wide">
-              {activeTab === "dashboard" && "Estadísticas Generales"}
-              {activeTab === "tasks" && "Tablero Kanban de Tareas"}
-            </h2>
-            <p className="text-xs text-[#94a3b8] mt-1">
-              Usuario:{" "}
-              <span className="font-semibold text-[#0aa5b5]">{user?.name}</span>{" "}
-              • Rol:{" "}
-              <span className="font-semibold text-[#0aa5b5]">
-                {isAdmin ? "Administrador" : "Técnico"}
-              </span>
-            </p>
+        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 pb-6 mb-6 border-b border-[#333a47]">
+          <div className="flex items-center space-x-4">
+            <button className="md:hidden text-white" onClick={() => setIsSidebarOpen(true)}>
+              <Menu size={24} />
+            </button>
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-wide">
+                {activeTab === "dashboard" && "Estadísticas Generales"}
+                {activeTab === "tasks" && "Tablero Kanban de Tareas"}
+                {activeTab === "users" && "Panel de Administrador"}
+              </h2>
+              <p className="text-xs text-[#94a3b8] mt-1">
+                Usuario:{" "}
+                <span className="font-semibold text-[#0aa5b5]">{user?.name}</span>{" "}
+                • Rol:{" "}
+                <span className="font-semibold text-[#0aa5b5]">
+                  {isAdmin ? "Administrador" : "Técnico"}
+                </span>
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 self-end md:self-auto">
             {activeTab === "tasks" && (
               <button
                 onClick={() => setIsCreateOpen(true)}
                 className="bg-[#0aa5b5] hover:bg-[#22c1d3] text-white flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md active:scale-95"
               >
                 <Plus size={16} />
-                <span>Nueva Tarea</span>
+                <span className="hidden sm:inline">Nueva Tarea</span>
               </button>
             )}
             <div className="flex items-center space-x-3 bg-[#20242d] px-4 py-2 rounded-xl border border-[#333a47]">
@@ -225,8 +251,8 @@ export const Dashboard = () => {
         {activeTab === "dashboard" && (
           <div className="space-y-8 animate-fadeIn">
             {/* STAT CARDS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="bg-[#20242d] p-5 rounded-2xl border border-[#333a47] flex flex-col justify-between hover:border-[#0aa5b5] transition-all">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="col-span-2 sm:col-span-1 bg-[#20242d] p-5 rounded-2xl border border-[#333a47] flex flex-col justify-between hover:border-[#0aa5b5] transition-all">
                 <span className="text-[10px] text-[#94a3b8] font-bold uppercase tracking-wider">
                   Total Tareas
                 </span>
@@ -277,71 +303,78 @@ export const Dashboard = () => {
                 </h3>
 
                 {/* SVG/CSS Bar Chart */}
-                <div className="h-64 flex flex-col justify-between pt-4">
-                  <div className="flex-1 flex items-end justify-around border-b border-[#333a47] pb-2 relative">
-                    {/* Y-axis gridlines */}
-                    <div className="absolute left-0 right-0 border-t border-[#333a47]/30 top-1/4"></div>
-                    <div className="absolute left-0 right-0 border-t border-[#333a47]/30 top-2/4"></div>
-                    <div className="absolute left-0 right-0 border-t border-[#333a47]/30 top-3/4"></div>
+                <div className="h-64 flex flex-col pt-4 relative">
+                  <div className="flex-1 min-h-0 flex items-end justify-around border-b border-[#333a47] pb-2 relative ml-8">
+                    {/* Y-axis labels and gridlines */}
+                    {(() => {
+                      const maxTasks = Math.max(toDoTasks, inProgressTasks, pendingTasks, completedTasks, 4);
+                      const roundedMax = Math.ceil(maxTasks / 4) * 4; // Asegurar múltiplo de 4
+                      
+                      return (
+                        <>
+                          {[1, 0.75, 0.5, 0.25].map((factor, i) => (
+                            <div key={i} className={`absolute left-0 right-0 border-t border-[#333a47]/30 ${
+                              i === 0 ? 'top-0' : i === 1 ? 'top-1/4' : i === 2 ? 'top-2/4' : 'top-3/4'
+                            }`}>
+                              <span className="absolute -left-8 -top-2.5 text-[10px] text-[#94a3b8] font-bold">
+                                {Math.round(roundedMax * factor)}
+                              </span>
+                            </div>
+                          ))}
+                          {/* 0 label at bottom */}
+                          <span className="absolute -left-8 bottom-0 text-[10px] text-[#94a3b8] font-bold">0</span>
 
-                    {/* Bars */}
-                    {[
-                      {
-                        label: "Por Hacer",
-                        val: toDoTasks,
-                        color: "bg-[#c95d5d]",
-                        percent:
-                          totalTasks > 0 ? (toDoTasks / totalTasks) * 100 : 0,
-                      },
-                      {
-                        label: "En Proceso",
-                        val: inProgressTasks,
-                        color: "bg-[#0aa5b5]",
-                        percent:
-                          totalTasks > 0
-                            ? (inProgressTasks / totalTasks) * 100
-                            : 0,
-                      },
-                      {
-                        label: "En Espera",
-                        val: pendingTasks,
-                        color: "bg-[#c0914e]",
-                        percent:
-                          totalTasks > 0
-                            ? (pendingTasks / totalTasks) * 100
-                            : 0,
-                      },
-                      {
-                        label: "Completado",
-                        val: completedTasks,
-                        color: "bg-[#669a71]",
-                        percent:
-                          totalTasks > 0
-                            ? (completedTasks / totalTasks) * 100
-                            : 0,
-                      },
-                    ].map((bar, idx) => (
-                      <div
-                        key={idx}
-                        className="flex flex-col items-center w-24 group relative z-1"
-                      >
-                        <span className="text-xs font-bold text-white mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {bar.val}
-                        </span>
-                        <div
-                          className={`w-12 ${bar.color} rounded-t-lg transition-all duration-500 hover:brightness-110 cursor-pointer`}
-                          style={{ height: `${Math.max(bar.percent, 5)}%` }}
-                        ></div>
-                      </div>
-                    ))}
+                          {/* Bars */}
+                          {[
+                            {
+                              label: "Por Hacer",
+                              val: toDoTasks,
+                              color: "bg-[#c95d5d]",
+                              percent: (toDoTasks / roundedMax) * 100,
+                            },
+                            {
+                              label: "En Proceso",
+                              val: inProgressTasks,
+                              color: "bg-[#0aa5b5]",
+                              percent: (inProgressTasks / roundedMax) * 100,
+                            },
+                            {
+                              label: "En Espera",
+                              val: pendingTasks,
+                              color: "bg-[#c0914e]",
+                              percent: (pendingTasks / roundedMax) * 100,
+                            },
+                            {
+                              label: "Completado",
+                              val: completedTasks,
+                              color: "bg-[#669a71]",
+                              percent: (completedTasks / roundedMax) * 100,
+                            },
+                          ].map((bar, idx) => (
+                            <div
+                              key={idx}
+                              className="flex flex-col items-center justify-end w-16 md:w-24 h-full group relative z-1"
+                            >
+                              <span className="text-xs font-bold text-white mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {bar.val}
+                              </span>
+                              <div
+                                className={`w-10 md:w-12 ${bar.color} rounded-t-lg transition-all duration-500 hover:brightness-110 cursor-pointer`}
+                                style={{ height: `${Math.max(bar.percent, 3)}%` }}
+                              ></div>
+                            </div>
+                          ))}
+                        </>
+                      );
+                    })()}
                   </div>
 
-                  <div className="flex justify-around pt-2">
+                  <div className="flex justify-around pt-2 ml-8">
                     {["Por Hacer", "En Proceso", "En Espera", "Completado"].map(
                       (label, idx) => (
                         <span
                           key={idx}
-                          className="text-xs text-[#94a3b8] font-bold w-24 text-center"
+                          className="text-[10px] md:text-xs text-[#94a3b8] font-bold w-16 md:w-24 text-center"
                         >
                           {label}
                         </span>
@@ -379,10 +412,12 @@ export const Dashboard = () => {
                       stroke="#669a71"
                       strokeWidth="10"
                       fill="transparent"
-                      strokeDasharray={251.2}
-                      strokeDashoffset={251.2 - (251.2 * completionRate) / 100}
                       strokeLinecap="round"
                       className="transition-all duration-1000 ease-out"
+                      style={{
+                        strokeDasharray: "251.2",
+                        strokeDashoffset: `${251.2 - (251.2 * completionRate) / 100}`
+                      }}
                     />
                   </svg>
                   <div className="absolute flex flex-col items-center">
@@ -481,6 +516,11 @@ export const Dashboard = () => {
               });
             }}
           />
+        )}
+
+        {/* 3. USERS VIEW */}
+        {activeTab === "users" && isAdmin && (
+          <UsersTab />
         )}
 
         {false && (

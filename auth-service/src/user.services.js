@@ -14,7 +14,7 @@ const findById = async (id) => {
     return toUser(rows[0]);
 };
 
-export const createUserRecord = async ({ userData }) => {
+export const createUserRecord = async ({ userData, createdByAdmin = false }) => {
     const password = await hash(userData.password, 10);
     const activationToken = uuidv4();
     const { rows } = await pool.query(
@@ -23,8 +23,22 @@ export const createUserRecord = async ({ userData }) => {
         [uuidv4(), userData.firstName, userData.surname, userData.email, userData.username, password, userData.role || 'USER_ROLE', activationToken]
     );
     const user = toUser(rows[0]);
-    await sendActivationEmail(user.email, activationToken, user.firstName);
+    await sendActivationEmail(user.email, activationToken, user.firstName, createdByAdmin);
     return publicUser(user);
+};
+
+export const setPasswordOnActivationRecord = async (token, newPassword) => {
+    const hashedPassword = await hash(newPassword, 10);
+    const { rows } = await pool.query(
+        `UPDATE users SET is_active = TRUE, activation_token = NULL, password = $1, updated_at = NOW()
+         WHERE activation_token = $2 RETURNING *`, [hashedPassword, token]
+    );
+    if (!rows[0]) {
+        const error = new Error('Este enlace ya fue usado o expiró.');
+        error.code = 'ACTIVATION_TOKEN_INVALID';
+        throw error;
+    }
+    return publicUser(toUser(rows[0]));
 };
 
 export const activateUserAccount = async (token) => {
