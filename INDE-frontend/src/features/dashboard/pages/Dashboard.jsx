@@ -10,7 +10,9 @@ import {
   Plus,
   X,
   Menu,
-  Users
+  Users,
+  Trash2,
+  Tag,
 } from "lucide-react";
 import LogoInde from "../../../assets/img/indelogo.png";
 import { UsersTab } from "../components/UsersTab";
@@ -135,13 +137,15 @@ export const Dashboard = () => {
     <div className="inde-dashboard-layout bg-[#12141a] min-h-screen text-[#e2e8f0]">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 z-40 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <aside className={`bg-[#20242d] border-r border-[#333a47] flex flex-col justify-between py-6 px-4 fixed h-screen w-[260px] z-50 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+      <aside
+        className={`bg-[#20242d] border-r border-[#333a47] flex flex-col justify-between py-6 px-4 fixed h-screen w-[260px] z-50 transition-transform duration-300 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+      >
         <div>
           <div className="flex items-center justify-between md:justify-center mb-8 px-2">
             <img
@@ -149,21 +153,30 @@ export const Dashboard = () => {
               alt="INDE Logo"
               className="h-10 md:h-15 object-contain"
             />
-            <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
+            <button
+              className="md:hidden text-gray-400 hover:text-white"
+              onClick={() => setIsSidebarOpen(false)}
+            >
               <X size={24} />
             </button>
           </div>
 
           <nav className="space-y-1">
             <button
-              onClick={() => { setActiveTab("dashboard"); setIsSidebarOpen(false); }}
+              onClick={() => {
+                setActiveTab("dashboard");
+                setIsSidebarOpen(false);
+              }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "dashboard" ? "inde-nav-active text-white font-semibold bg-[#2a2f3a]" : ""}`}
             >
               <BarChart3 size={18} />
               <span>Dashboard</span>
             </button>
             <button
-              onClick={() => { setActiveTab("tasks"); setIsSidebarOpen(false); }}
+              onClick={() => {
+                setActiveTab("tasks");
+                setIsSidebarOpen(false);
+              }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "tasks" ? "inde-nav-active text-white font-semibold bg-[#2a2f3a]" : ""}`}
             >
               <CheckSquare size={18} />
@@ -171,7 +184,10 @@ export const Dashboard = () => {
             </button>
             {isAdmin && (
               <button
-                onClick={() => { setActiveTab("users"); setIsSidebarOpen(false); }}
+                onClick={() => {
+                  setActiveTab("users");
+                  setIsSidebarOpen(false);
+                }}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-colors hover:bg-[#2a2f3a] text-[#94a3b8] ${activeTab === "users" ? "inde-nav-active text-white font-semibold bg-[#2a2f3a]" : ""}`}
               >
                 <Users size={18} />
@@ -197,7 +213,10 @@ export const Dashboard = () => {
         {/* HEADER */}
         <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 pb-6 mb-6 border-b border-[#333a47]">
           <div className="flex items-center space-x-4">
-            <button className="md:hidden text-white" onClick={() => setIsSidebarOpen(true)}>
+            <button
+              className="md:hidden text-white"
+              onClick={() => setIsSidebarOpen(true)}
+            >
               <Menu size={24} />
             </button>
             <div>
@@ -208,7 +227,9 @@ export const Dashboard = () => {
               </h2>
               <p className="text-xs text-[#94a3b8] mt-1">
                 Usuario:{" "}
-                <span className="font-semibold text-[#0aa5b5]">{user?.name}</span>{" "}
+                <span className="font-semibold text-[#0aa5b5]">
+                  {user?.name}
+                </span>{" "}
                 • Rol:{" "}
                 <span className="font-semibold text-[#0aa5b5]">
                   {isAdmin ? "Administrador" : "Técnico"}
@@ -307,22 +328,39 @@ export const Dashboard = () => {
                   <div className="flex-1 min-h-0 flex items-end justify-around border-b border-[#333a47] pb-2 relative ml-8">
                     {/* Y-axis labels and gridlines */}
                     {(() => {
-                      const maxTasks = Math.max(toDoTasks, inProgressTasks, pendingTasks, completedTasks, 4);
+                      const maxTasks = Math.max(
+                        toDoTasks,
+                        inProgressTasks,
+                        pendingTasks,
+                        completedTasks,
+                        4,
+                      );
                       const roundedMax = Math.ceil(maxTasks / 4) * 4; // Asegurar múltiplo de 4
-                      
+
                       return (
                         <>
                           {[1, 0.75, 0.5, 0.25].map((factor, i) => (
-                            <div key={i} className={`absolute left-0 right-0 border-t border-[#333a47]/30 ${
-                              i === 0 ? 'top-0' : i === 1 ? 'top-1/4' : i === 2 ? 'top-2/4' : 'top-3/4'
-                            }`}>
+                            <div
+                              key={i}
+                              className={`absolute left-0 right-0 border-t border-[#333a47]/30 ${
+                                i === 0
+                                  ? "top-0"
+                                  : i === 1
+                                    ? "top-1/4"
+                                    : i === 2
+                                      ? "top-2/4"
+                                      : "top-3/4"
+                              }`}
+                            >
                               <span className="absolute -left-8 -top-2.5 text-[10px] text-[#94a3b8] font-bold">
                                 {Math.round(roundedMax * factor)}
                               </span>
                             </div>
                           ))}
                           {/* 0 label at bottom */}
-                          <span className="absolute -left-8 bottom-0 text-[10px] text-[#94a3b8] font-bold">0</span>
+                          <span className="absolute -left-8 bottom-0 text-[10px] text-[#94a3b8] font-bold">
+                            0
+                          </span>
 
                           {/* Bars */}
                           {[
@@ -359,8 +397,11 @@ export const Dashboard = () => {
                                 {bar.val}
                               </span>
                               <div
-                                className={`w-10 md:w-12 ${bar.color} rounded-t-lg transition-all duration-500 hover:brightness-110 cursor-pointer`}
-                                style={{ height: `${Math.max(bar.percent, 3)}%` }}
+                                className="w-10 md:w-12 rounded-t-lg transition-all duration-500 hover:brightness-110 cursor-pointer"
+                                style={{
+                                  height: `${Math.max(bar.percent, 3)}%`,
+                                  backgroundColor: bar.color,
+                                }}
                               ></div>
                             </div>
                           ))}
@@ -416,7 +457,7 @@ export const Dashboard = () => {
                       className="transition-all duration-1000 ease-out"
                       style={{
                         strokeDasharray: "251.2",
-                        strokeDashoffset: `${251.2 - (251.2 * completionRate) / 100}`
+                        strokeDashoffset: `${251.2 - (251.2 * completionRate) / 100}`,
                       }}
                     />
                   </svg>
@@ -519,9 +560,7 @@ export const Dashboard = () => {
         )}
 
         {/* 3. USERS VIEW */}
-        {activeTab === "users" && isAdmin && (
-          <UsersTab />
-        )}
+        {activeTab === "users" && isAdmin && <UsersTab />}
 
         {false && (
           <div className="flex-1 flex flex-col min-h-0 animate-fadeIn">
@@ -837,7 +876,10 @@ export const Dashboard = () => {
                     <select
                       value={editForm.userId || ""}
                       onChange={(e) =>
-                        setEditForm({ ...editForm, userId: e.target.value || null })
+                        setEditForm({
+                          ...editForm,
+                          userId: e.target.value || null,
+                        })
                       }
                       className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
                     >
@@ -853,8 +895,12 @@ export const Dashboard = () => {
                       {(() => {
                         if (!editForm.userId) return "Sin Asignar";
                         if (editForm.userId === user?.id) return user?.name;
-                        const found = users.find(u => (u.id || u._id) === editForm.userId);
-                        return found ? `${found.firstName} ${found.surname}` : "Asignado";
+                        const found = users.find(
+                          (u) => (u.id || u._id) === editForm.userId,
+                        );
+                        return found
+                          ? `${found.firstName} ${found.surname}`
+                          : "Asignado";
                       })()}
                     </div>
                   )}
@@ -991,7 +1037,7 @@ export const Dashboard = () => {
             {/* Header */}
             <div className="flex justify-between items-center p-6 border-b border-[#333a47] bg-[#2a2f3a]">
               <div className="flex items-center space-x-2">
-                <TagIcon className="text-[#0aa5b5]" size={18} />
+                <Tag className="text-[#0aa5b5]" size={18} />
                 <h3 className="font-bold text-white text-sm">
                   Crear Nueva Tarea
                 </h3>
