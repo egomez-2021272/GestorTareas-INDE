@@ -11,7 +11,7 @@ public class TaskItem
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-   
+    public Guid? UserId { get; set; }
     public ICollection<Tag> Tags { get; set; } = new List<Tag>();
 }
 //Representa una tarjeta o la tarea en un tablero

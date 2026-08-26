@@ -15,9 +15,9 @@ public class TaskService : ITaskService
         _repository = repository;
     }
 
-    public async Task<IEnumerable<TaskDto>> GetAllTasksAsync()
+    public async Task<IEnumerable<TaskDto>> GetAllTasksAsync(Guid? userId = null)
     {
-        var tasks = await _repository.GetAllTasksAsync();
+        var tasks = await _repository.GetAllTasksAsync(userId);
         return tasks.Select(t => t.ToDto());
     }
 
@@ -34,6 +34,7 @@ public class TaskService : ITaskService
             Title = createTaskDto.Title,
             Description = createTaskDto.Description,
             Status = createTaskDto.Status.ToEnum(),
+            UserId = createTaskDto.UserId,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -51,6 +52,7 @@ public class TaskService : ITaskService
         task.Title = updateTaskDto.Title;
         task.Description = updateTaskDto.Description;
         task.Status = updateTaskDto.Status.ToEnum();
+        task.UserId = updateTaskDto.UserId;
         task.UpdatedAt = DateTime.UtcNow;
 
         _repository.UpdateTask(task);

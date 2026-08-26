@@ -5,7 +5,7 @@ namespace TaskService.Application.Interfaces;
 public interface ITaskService
 {
     
-    Task<IEnumerable<TaskDto>> GetAllTasksAsync();
+    Task<IEnumerable<TaskDto>> GetAllTasksAsync(Guid? userId = null);
     Task<TaskDto?> GetTaskByIdAsync(Guid id);
     Task<TaskDto> CreateTaskAsync(CreateTaskDto createTaskDto);
     Task<TaskDto?> UpdateTaskAsync(Guid id, UpdateTaskDto updateTaskDto);

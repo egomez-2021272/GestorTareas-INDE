@@ -1,7 +1,7 @@
 // src/features/auth/store/authStore.js
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { loginRequest, registerRequest, resetPasswordRequest } from '../../../shared/apis/authApi';
+import { loginRequest, registerRequest, resetPasswordRequest, getAllUsersRequest } from '../../../shared/apis/authApi';
 import toast from 'react-hot-toast';
 
 export const useAuthStore = create(
@@ -12,21 +12,27 @@ export const useAuthStore = create(
       isAuthenticated: false,
       loading: false,
       error: null,
+      users: [],
 
       login: async ({ username, password }) => {
         try {
           set({ loading: true, error: null });
           
           const { data } = await loginRequest({ username, password });
+          const userObj = data.data.user;
+          const name = userObj.firstName && userObj.surname
+            ? `${userObj.firstName} ${userObj.surname}`
+            : userObj.firstName || userObj.username || 'Usuario';
+          const userWithName = { ...userObj, name };
           
           set({
-            user: data.data.user,
+            user: userWithName,
             token: data.data.token,
             isAuthenticated: true,
             error: null,
           });
 
-          toast.success(`Bienvenido ${data.data.user.name}`);
+          toast.success(`Bienvenido ${name}`);
           return { success: true };
           
         } catch (err) {
@@ -72,12 +78,24 @@ export const useAuthStore = create(
         }
       },
 
+      fetchUsers: async () => {
+        try {
+          const { token } = get();
+          if (!token) return;
+          const { data } = await getAllUsersRequest(token);
+          set({ users: data.data || [] });
+        } catch (err) {
+          console.error('Error al obtener lista de usuarios:', err);
+        }
+      },
+
       logout: () => {
         set({
           user: null,
           token: null,
           isAuthenticated: false,
           error: null,
+          users: [],
         });
         toast.success('Sesión cerrada correctamente');
       },

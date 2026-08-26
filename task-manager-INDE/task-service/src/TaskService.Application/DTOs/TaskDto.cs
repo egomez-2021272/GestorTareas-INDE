@@ -10,5 +10,6 @@ public class TaskDto
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    public Guid? UserId { get; set; }
     public ICollection<TagDto> Tags { get; set; } = new List<TagDto>();
 }

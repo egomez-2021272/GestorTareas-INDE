@@ -16,6 +16,7 @@ public static class MappingExtensions
         Status = task.Status.ToString(),
         CreatedAt = task.CreatedAt,
         UpdatedAt = task.UpdatedAt,
+        UserId = task.UserId,
         Tags = task.Tags.Select(t => t.ToDto()).ToList() //transforma la lista de la db a su versin segur para enviar a la web
 
     };

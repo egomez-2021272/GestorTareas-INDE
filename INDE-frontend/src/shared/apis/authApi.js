@@ -10,3 +10,4 @@ export const registerRequest = (userData) => authApi.post('/', userData);
 export const resetPasswordRequest = (email) => authApi.post('/forgot-password', { email });
 export const activateAccountRequest = (token) => authApi.get(`/activate/${token}`);
 export const setNewPasswordRequest = (token, newPassword) => authApi.post(`/reset-password/${token}`, { newPassword });
+export const getAllUsersRequest = (token) => authApi.get('/users', { headers: { Authorization: `Bearer ${token}` } });

@@ -17,7 +17,7 @@ import {
 import LogoInde from "../../../assets/img/indelogo.png";
 
 export const Dashboard = () => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, users, fetchUsers } = useAuthStore();
   const { tasks, tags, fetchTasks, addTask, updateTask, deleteTask } =
     useTaskStore();
   const navigate = useNavigate();
@@ -32,12 +32,16 @@ export const Dashboard = () => {
     description: "",
     status: "ToDo",
     tagIds: [],
+    userId: "",
   });
 
   const [editForm, setEditForm] = useState(null);
 
   useEffect(() => {
     fetchTasks();
+    if (user?.role === "ADMIN_ROLE") {
+      fetchUsers();
+    }
   }, []);
 
   const handleLogout = () => {
@@ -80,6 +84,7 @@ export const Dashboard = () => {
       description: "",
       status: "ToDo",
       tagIds: [],
+      userId: "",
     });
   };
 
@@ -187,7 +192,7 @@ export const Dashboard = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            {isAdmin && activeTab === "tasks" && (
+            {activeTab === "tasks" && (
               <button
                 onClick={() => setIsCreateOpen(true)}
                 className="bg-[#0aa5b5] hover:bg-[#22c1d3] text-white flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md active:scale-95"
@@ -463,6 +468,7 @@ export const Dashboard = () => {
         {activeTab === "tasks" && (
           <TaskList
             tasks={tasks}
+            users={users}
             onTaskSelect={(task) => {
               setSelectedTask(task);
               setEditForm({
@@ -471,6 +477,7 @@ export const Dashboard = () => {
                 description: task.description,
                 status: task.status,
                 tagIds: task.tags?.map((tag) => tag.id) || [],
+                userId: task.userId || "",
               });
             }}
           />
@@ -781,7 +788,38 @@ export const Dashboard = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Asignado a
+                  </label>
+                  {isAdmin ? (
+                    <select
+                      value={editForm.userId || ""}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, userId: e.target.value || null })
+                      }
+                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
+                    >
+                      <option value="">Sin Asignar</option>
+                      {users.map((u) => (
+                        <option key={u.id || u._id} value={u.id || u._id}>
+                          {u.firstName} {u.surname} ({u.username})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
+                      {(() => {
+                        if (!editForm.userId) return "Sin Asignar";
+                        if (editForm.userId === user?.id) return user?.name;
+                        const found = users.find(u => (u.id || u._id) === editForm.userId);
+                        return found ? `${found.firstName} ${found.surname}` : "Asignado";
+                      })()}
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
                     Estado
@@ -906,8 +944,8 @@ export const Dashboard = () => {
         </div>
       )}
 
-      {/* CREATE TASK DRAWER (ONLY FOR ADMINS) */}
-      {isAdmin && isCreateOpen && (
+      {/* CREATE TASK DRAWER */}
+      {isCreateOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-end z-50 animate-fadeIn">
           <div className="bg-[#20242d] w-full max-w-[400px] h-full shadow-2xl flex flex-col border-l border-[#333a47] animate-fadeInScale">
             {/* Header */}
@@ -973,6 +1011,26 @@ export const Dashboard = () => {
                   <option value="Completed">Completado</option>
                 </select>
               </div>
+
+              {isAdmin && (
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Asignar a
+                  </label>
+                  <select
+                    value={createForm.userId}
+                    onChange={(e) => setFormValue("userId", e.target.value)}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
+                  >
+                    <option value="">Sin Asignar</option>
+                    {users.map((u) => (
+                      <option key={u.id || u._id} value={u.id || u._id}>
+                        {u.firstName} {u.surname} ({u.username})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Tags checkboxes */}
               <div>

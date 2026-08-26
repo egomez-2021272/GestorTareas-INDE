@@ -13,11 +13,14 @@ public class TaskRepository : ITaskRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<TaskItem>> GetAllTasksAsync()
+    public async Task<IEnumerable<TaskItem>> GetAllTasksAsync(Guid? userId = null)
     {
-        return await _context.Tasks
-            .Include(t => t.Tags) // Trae consigo las etiquetas de cada tarea en la misma consulta.
-            .ToListAsync();
+        var query = _context.Tasks.Include(t => t.Tags).AsQueryable();
+        if (userId.HasValue)
+        {
+            query = query.Where(t => t.UserId == userId.Value);
+        }
+        return await query.ToListAsync();
     }
  // Busca una tarea por su ID e incluye de forma activa sus etiquetas asociadas.
     public async Task<TaskItem?> GetTaskByIdAsync(Guid id)

@@ -24,9 +24,9 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TaskDto>>> GetAllTasks()
+    public async Task<ActionResult<IEnumerable<TaskDto>>> GetAllTasks([FromQuery] Guid? userId)
     {
-        var tasks = await _taskService.GetAllTasksAsync();
+        var tasks = await _taskService.GetAllTasksAsync(userId);
         return Ok(tasks);
     }
 

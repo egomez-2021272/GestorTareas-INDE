@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuthStore } from "../../../features/auth/store/authStore";
 
 const columns = [
   { status: "ToDo", label: "Por Hacer", color: "#c95d5d" },
@@ -7,7 +8,7 @@ const columns = [
   { status: "Completed", label: "Completado", color: "#669a71" },
 ];
 
-export const TaskList = ({ tasks, onTaskSelect }) => {
+export const TaskList = ({ tasks, onTaskSelect, users }) => {
   return (
     <div className="flex-1 flex flex-col min-h-0 animate-fadeIn">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
@@ -43,6 +44,7 @@ export const TaskList = ({ tasks, onTaskSelect }) => {
                     task={task}
                     isCompleted={column.status === "Completed"}
                     onSelect={onTaskSelect}
+                    users={users}
                   />
                 ))}
               </div>
@@ -54,17 +56,38 @@ export const TaskList = ({ tasks, onTaskSelect }) => {
   );
 };
 
-const TaskCard = ({ task, isCompleted, onSelect }) => {
+const TaskCard = ({ task, isCompleted, onSelect, users }) => {
+  const { user: currentUser } = useAuthStore();
+  
+  const getAssignedName = () => {
+    if (!task.userId) return null;
+    if (task.userId === currentUser?.id) return "Asignado a mí";
+    if (users && users.length > 0) {
+      const found = users.find(u => (u.id || u._id) === task.userId);
+      if (found) return `Asignado a: ${found.firstName}`;
+    }
+    return "Asignado";
+  };
+  
+  const assignedName = getAssignedName();
+
   return (
     <div
       onClick={() => onSelect(task)}
       className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
     >
-      <h4
-        className={`text-sm font-semibold text-white leading-snug group-hover:text-[#22c1d3] transition-colors ${isCompleted ? "line-through decoration-[#94a3b8]" : ""}`}
-      >
-        {task.title}
-      </h4>
+      <div className="flex justify-between items-start gap-2">
+        <h4
+          className={`text-sm font-semibold text-white leading-snug group-hover:text-[#22c1d3] transition-colors ${isCompleted ? "line-through decoration-[#94a3b8]" : ""}`}
+        >
+          {task.title}
+        </h4>
+        {assignedName && (
+          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 bg-[#0aa5b5]/10 border border-[#0aa5b5]/20 text-[#0aa5b5] rounded">
+            {assignedName}
+          </span>
+        )}
+      </div>
       <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
         {task.description}
       </p>
