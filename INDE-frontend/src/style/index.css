@@ -1,30 +1,29 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @theme {
   /* Paleta principal INDE */
-  --color-inde-cyan: #0aa5b5;           /* Botones principales y acentos */
-  --color-inde-cyan-hover: #22c1d3;     /* Hover para botones */
-  --color-inde-bg-dark: #12141a;        /* Fondo principal (App y Login) */
-  --color-inde-panel: #20242d;          /* Fondo de modales, columnas y sidebar */
-  --color-inde-panel-light: #2a2f3a;    /* Tarjetas de tareas y hover en sidebar */
-  
+  --color-inde-cyan: #0aa5b5;
+  --color-inde-cyan-hover: #22c1d3;
+  --color-inde-bg-dark: #12141a;
+  --color-inde-panel: #20242d;
+  --color-inde-panel-light: #2a2f3a;
+
   /* Colores de estado (Desaturados y mates) */
-  --color-inde-red: #c95d5d;            /* Alta Tensión */
-  --color-inde-yellow: #c0914e;         /* Urgente */
-  --color-inde-green: #669a71;          /* Mantenimiento / Completado */
-  
+  --color-inde-red: #c95d5d;
+  --color-inde-yellow: #c0914e;
+  --color-inde-green: #669a71;
+
   /* Textos y bordes */
-  --color-inde-text-main: #e2e8f0;      /* Texto principal claro */
-  --color-inde-text-muted: #94a3b8;     /* Texto secundario (descripciones, fechas) */
-  --color-inde-border: #333a47;         /* Separadores y bordes de inputs */
+  --color-inde-text-main: #e2e8f0;
+  --color-inde-text-muted: #94a3b8;
+  --color-inde-border: #333a47;
 }
 
 :root {
-  /* Se recomienda Inter o Roboto para este diseño técnico */
-  font-family: 'Inter', Roboto, Arial, Helvetica, sans-serif;
+  font-family: "Inter", Roboto, Arial, Helvetica, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  
+
   /* Variables nativas reflejadas */
   --inde-cyan: #0aa5b5;
   --inde-cyan-hover: #22c1d3;
@@ -37,9 +36,14 @@
   --inde-text-main: #e2e8f0;
   --inde-text-muted: #94a3b8;
   --inde-border: #333a47;
-  
+
   /* Gradientes sobrios para fondos decorativos o el Login */
-  --inde-gradient: linear-gradient(135deg, #20242d 0%, #171920 50%, #12141a 100%);
+  --inde-gradient: linear-gradient(
+    135deg,
+    #20242d 0%,
+    #171920 50%,
+    #12141a 100%
+  );
   --inde-btn-gradient: linear-gradient(135deg, #0aa5b5 0%, #067e8b 100%);
 
   /* Aplicación base al documento */
@@ -63,14 +67,7 @@ body {
 
 .inde-dashboard-layout {
   min-width: 0;
-}
-
-@media (min-width: 768px) {
-  .inde-dashboard-layout {
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    min-height: 100vh;
-  }
+  min-height: 100vh;
 }
 
 @keyframes spin {
