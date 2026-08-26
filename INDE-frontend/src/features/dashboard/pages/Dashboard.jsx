@@ -367,25 +367,25 @@ export const Dashboard = () => {
                             {
                               label: "Por Hacer",
                               val: toDoTasks,
-                              color: "bg-[#c95d5d]",
+                              color: "#c95d5d",
                               percent: (toDoTasks / roundedMax) * 100,
                             },
                             {
                               label: "En Proceso",
                               val: inProgressTasks,
-                              color: "bg-[#0aa5b5]",
+                              color: "#0aa5b5",
                               percent: (inProgressTasks / roundedMax) * 100,
                             },
                             {
                               label: "En Espera",
                               val: pendingTasks,
-                              color: "bg-[#c0914e]",
+                              color: "#c0914e",
                               percent: (pendingTasks / roundedMax) * 100,
                             },
                             {
                               label: "Completado",
                               val: completedTasks,
-                              color: "bg-[#669a71]",
+                              color: "#669a71",
                               percent: (completedTasks / roundedMax) * 100,
                             },
                           ].map((bar, idx) => (
