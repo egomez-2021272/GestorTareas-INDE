@@ -1,8 +1,7 @@
 // src/features/auth/store/authStore.js
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-// CORRECCIÓN: Ajustamos la ruta para importar el mock
-import { loginRequest, registerRequest, resetPasswordRequest } from '../../../shared/apis/authMock';
+import { loginRequest, registerRequest, resetPasswordRequest } from '../../../shared/apis/authApi';
 import toast from 'react-hot-toast';
 
 export const useAuthStore = create(
@@ -18,10 +17,8 @@ export const useAuthStore = create(
         try {
           set({ loading: true, error: null });
           
-          // Llamamos a nuestra API falsa
           const { data } = await loginRequest({ username, password });
           
-          // Si es exitoso, guardamos los datos
           set({
             user: data.data.user,
             token: data.data.token,
@@ -33,8 +30,7 @@ export const useAuthStore = create(
           return { success: true };
           
         } catch (err) {
-          // Extraemos el mensaje de error del mock
-          const message = err.response?.data?.message || 'Error al iniciar sesión';
+          const message = err.response?.data?.error || err.response?.data?.message || 'Error al iniciar sesión';
           set({ error: message });
           toast.error(message);
           return { success: false, error: message };
@@ -51,7 +47,7 @@ export const useAuthStore = create(
           toast.success(data.message);
           return { success: true };
         } catch (err) {
-          const message = err.response?.data?.message || 'Error al registrar usuario';
+          const message = err.response?.data?.errors?.[0]?.msg || err.response?.data?.message || 'Error al registrar usuario';
           set({ error: message });
           toast.error(message);
           return { success: false, error: message };
@@ -63,7 +59,7 @@ export const useAuthStore = create(
       resetPassword: async (email) => {
         try {
           set({ loading: true, error: null });
-          const { data } = await resetPasswordRequest({ email });
+          const { data } = await resetPasswordRequest(email);
           toast.success(data.message);
           return { success: true };
         } catch (err) {
