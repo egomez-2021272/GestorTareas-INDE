@@ -1,0 +1,91 @@
+import React from "react";
+
+const columns = [
+  { status: "ToDo", label: "Por Hacer", color: "#c95d5d" },
+  { status: "InProgress", label: "En Proceso", color: "#0aa5b5" },
+  { status: "Pending", label: "En Espera", color: "#c0914e" },
+  { status: "Completed", label: "Completado", color: "#669a71" },
+];
+
+export const TaskList = ({ tasks, onTaskSelect }) => {
+  return (
+    <div className="flex-1 flex flex-col min-h-0 animate-fadeIn">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
+        {columns.map((column) => {
+          const columnTasks = tasks.filter(
+            (task) => task.status === column.status,
+          );
+
+          return (
+            <div
+              key={column.status}
+              className="bg-[#20242d]/40 rounded-2xl border border-[#333a47]/50 p-4 flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-4 px-2">
+                <div className="flex items-center space-x-2">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: column.color }}
+                  ></div>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                    {column.label}
+                  </h3>
+                </div>
+                <span className="bg-[#2a2f3a] px-2.5 py-0.5 rounded-full text-xs text-[#94a3b8] font-bold">
+                  {columnTasks.length}
+                </span>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[60vh] md:max-h-[none]">
+                {columnTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    isCompleted={column.status === "Completed"}
+                    onSelect={onTaskSelect}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const TaskCard = ({ task, isCompleted, onSelect }) => {
+  return (
+    <div
+      onClick={() => onSelect(task)}
+      className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
+    >
+      <h4
+        className={`text-sm font-semibold text-white leading-snug group-hover:text-[#22c1d3] transition-colors ${isCompleted ? "line-through decoration-[#94a3b8]" : ""}`}
+      >
+        {task.title}
+      </h4>
+      <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
+        {task.description}
+      </p>
+
+      {task.tags && task.tags.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-[#333a47] flex flex-wrap gap-1.5">
+          {task.tags.map((tag) => (
+            <span
+              key={tag.id}
+              className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border"
+              style={{
+                backgroundColor: `${tag.color}15`,
+                color: tag.color,
+                borderColor: `${tag.color}30`,
+              }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
