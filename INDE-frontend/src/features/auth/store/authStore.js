@@ -1,8 +1,15 @@
 // src/features/auth/store/authStore.js
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { loginRequest, registerRequest, resetPasswordRequest, getAllUsersRequest } from '../../../shared/apis/authApi';
-import toast from 'react-hot-toast';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import {
+  loginRequest,
+  registerRequest,
+  resetPasswordRequest,
+  getAllUsersRequest,
+  toggleUserStatusRequest,
+  createAdminRequest,
+} from "../../../shared/apis/authApi";
+import toast from "react-hot-toast";
 
 export const useAuthStore = create(
   persist(
@@ -17,14 +24,15 @@ export const useAuthStore = create(
       login: async ({ username, password }) => {
         try {
           set({ loading: true, error: null });
-          
+
           const { data } = await loginRequest({ username, password });
           const userObj = data.data.user;
-          const name = userObj.firstName && userObj.surname
-            ? `${userObj.firstName} ${userObj.surname}`
-            : userObj.firstName || userObj.username || 'Usuario';
+          const name =
+            userObj.firstName && userObj.surname
+              ? `${userObj.firstName} ${userObj.surname}`
+              : userObj.firstName || userObj.username || "Usuario";
           const userWithName = { ...userObj, name };
-          
+
           set({
             user: userWithName,
             token: data.data.token,
@@ -34,13 +42,14 @@ export const useAuthStore = create(
 
           toast.success(`Bienvenido ${name}`);
           return { success: true };
-          
         } catch (err) {
-          const message = err.response?.data?.error || err.response?.data?.message || 'Error al iniciar sesión';
+          const message =
+            err.response?.data?.error ||
+            err.response?.data?.message ||
+            "Error al iniciar sesión";
           set({ error: message });
           toast.error(message);
           return { success: false, error: message };
-          
         } finally {
           set({ loading: false });
         }
@@ -53,7 +62,10 @@ export const useAuthStore = create(
           toast.success(data.message);
           return { success: true };
         } catch (err) {
-          const message = err.response?.data?.errors?.[0]?.msg || err.response?.data?.message || 'Error al registrar usuario';
+          const message =
+            err.response?.data?.errors?.[0]?.msg ||
+            err.response?.data?.message ||
+            "Error al registrar usuario";
           set({ error: message });
           toast.error(message);
           return { success: false, error: message };
@@ -69,7 +81,8 @@ export const useAuthStore = create(
           toast.success(data.message);
           return { success: true };
         } catch (err) {
-          const message = err.response?.data?.message || 'Error al restablecer contraseña';
+          const message =
+            err.response?.data?.message || "Error al restablecer contraseña";
           set({ error: message });
           toast.error(message);
           return { success: false, error: message };
@@ -85,27 +98,41 @@ export const useAuthStore = create(
           const { data } = await getAllUsersRequest(token);
           set({ users: data.data || [] });
         } catch (err) {
-          console.error('Error al obtener lista de usuarios:', err);
+          console.error("Error al obtener lista de usuarios:", err);
         }
       },
 
       toggleUserStatus: async (id) => {
         try {
           const { token, users } = get();
-          
+          const targetUser = users.find((u) => (u.id || u._id) === id);
+
+          if (!targetUser) {
+            throw new Error("Usuario no encontrado");
+          }
+
+          if (targetUser.role === "ADMIN_ROLE") {
+            const message =
+              "No se puede desactivar a un usuario con rol administrador.";
+            toast.error(message);
+            return { success: false, error: message };
+          }
+
           // Actualización optimista para que la UI reaccione instantáneamente
-          const updatedUsers = users.map(u => 
-            (u.id === id || u._id === id) ? { ...u, isActive: !u.isActive } : u
+          const updatedUsers = users.map((u) =>
+            u.id === id || u._id === id ? { ...u, isActive: !u.isActive } : u,
           );
           set({ users: updatedUsers });
 
           await toggleUserStatusRequest(id, token);
-          toast.success('Estado de usuario actualizado');
+          toast.success("Estado de usuario actualizado");
           return { success: true };
         } catch (err) {
-          // Revertir si falla
           await get().fetchUsers();
-          const message = err.response?.data?.message || 'Error al actualizar estado';
+          const message =
+            err.response?.data?.message ||
+            err.message ||
+            "Error al actualizar estado";
           toast.error(message);
           return { success: false, error: message };
         }
@@ -116,16 +143,19 @@ export const useAuthStore = create(
           set({ loading: true, error: null });
           const { token } = get();
           let res;
-          if (role === 'ADMIN_ROLE') {
+          if (role === "ADMIN_ROLE") {
             res = await createAdminRequest(userData, token);
           } else {
             res = await registerRequest(userData);
           }
-          toast.success(res.data.message || 'Usuario creado exitosamente');
+          toast.success(res.data.message || "Usuario creado exitosamente");
           await get().fetchUsers();
           return { success: true };
         } catch (err) {
-          const message = err.response?.data?.errors?.[0]?.msg || err.response?.data?.message || 'Error al crear usuario';
+          const message =
+            err.response?.data?.errors?.[0]?.msg ||
+            err.response?.data?.message ||
+            "Error al crear usuario";
           set({ error: message });
           toast.error(message);
           return { success: false, error: message };
@@ -142,11 +172,11 @@ export const useAuthStore = create(
           error: null,
           users: [],
         });
-        toast.success('Sesión cerrada correctamente');
+        toast.success("Sesión cerrada correctamente");
       },
     }),
     {
-      name: 'auth-storage-inde', // Nombre con el que se guarda en el navegador
-    }
-  )
+      name: "auth-storage-inde", // Nombre con el que se guarda en el navegador
+    },
+  ),
 );
