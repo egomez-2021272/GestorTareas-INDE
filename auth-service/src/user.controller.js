@@ -1,6 +1,7 @@
 import {
     createUserRecord,
     activateUserAccount,
+    setPasswordOnActivationRecord,
     loginUser,
     changePassword,
     requestPasswordReset,
@@ -14,7 +15,11 @@ import jwt from 'jsonwebtoken';
 
 export const createUser = async (req, res) => {
     try {
-        const user = await createUserRecord({ userData: req.body });
+        // pasamos el flag createdByAdmin si viene del admin frontend
+        const user = await createUserRecord({ 
+            userData: req.body, 
+            createdByAdmin: req.body.createdByAdmin === true 
+        });
 
         return res.status(201).json({
             success: true,
@@ -35,7 +40,8 @@ export const createUser = async (req, res) => {
             console.error('Error al registrar el usuario:', e.message);
             return res.status(500).json({
                 success: false,
-                message: 'Error al registrar el usuario'
+                message: 'Error al registrar el usuario',
+                error: e.message
             });
         }
 };
@@ -225,7 +231,8 @@ export const resetPasswordController = async (req, res) => {
 export const createAdmin = async (req, res) => {
     try {
         const user = await createUserRecord({
-            userData: { ...req.body, role: 'ADMIN_ROLE' }  // fuerza el rol admin
+            userData: { ...req.body, role: 'ADMIN_ROLE' },
+            createdByAdmin: true
         });
 
         return res.status(201).json({
@@ -238,6 +245,29 @@ export const createAdmin = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Error al crear el admin',
+            error: e.message
+        });
+    }
+};
+
+export const setPasswordOnActivation = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { newPassword } = req.body;
+        const result = await setPasswordOnActivationRecord(token, newPassword);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Contraseña guardada y cuenta activada exitosamente.'
+        });
+
+    } catch (e) {
+        return res.status(400).json({
+            success: false,
+            code: e.code || 'ACTIVATION_ERROR',
+            message: e.code === 'ACTIVATION_TOKEN_INVALID'
+                ? 'Este enlace ya fue usado o es inválido.'
+                : 'No pudimos guardar la contraseña.',
             error: e.message
         });
     }

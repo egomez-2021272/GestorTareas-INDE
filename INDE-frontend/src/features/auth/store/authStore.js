@@ -89,6 +89,51 @@ export const useAuthStore = create(
         }
       },
 
+      toggleUserStatus: async (id) => {
+        try {
+          const { token, users } = get();
+          
+          // Actualización optimista para que la UI reaccione instantáneamente
+          const updatedUsers = users.map(u => 
+            (u.id === id || u._id === id) ? { ...u, isActive: !u.isActive } : u
+          );
+          set({ users: updatedUsers });
+
+          await toggleUserStatusRequest(id, token);
+          toast.success('Estado de usuario actualizado');
+          return { success: true };
+        } catch (err) {
+          // Revertir si falla
+          await get().fetchUsers();
+          const message = err.response?.data?.message || 'Error al actualizar estado';
+          toast.error(message);
+          return { success: false, error: message };
+        }
+      },
+
+      createUserByAdmin: async (userData, role) => {
+        try {
+          set({ loading: true, error: null });
+          const { token } = get();
+          let res;
+          if (role === 'ADMIN_ROLE') {
+            res = await createAdminRequest(userData, token);
+          } else {
+            res = await registerRequest(userData);
+          }
+          toast.success(res.data.message || 'Usuario creado exitosamente');
+          await get().fetchUsers();
+          return { success: true };
+        } catch (err) {
+          const message = err.response?.data?.errors?.[0]?.msg || err.response?.data?.message || 'Error al crear usuario';
+          set({ error: message });
+          toast.error(message);
+          return { success: false, error: message };
+        } finally {
+          set({ loading: false });
+        }
+      },
+
       logout: () => {
         set({
           user: null,

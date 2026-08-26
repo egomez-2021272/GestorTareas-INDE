@@ -35,6 +35,7 @@ public class TaskService : ITaskService
             Description = createTaskDto.Description,
             Status = createTaskDto.Status.ToEnum(),
             UserId = createTaskDto.UserId,
+            AssignedToName = createTaskDto.AssignedToName,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -53,6 +54,7 @@ public class TaskService : ITaskService
         task.Description = updateTaskDto.Description;
         task.Status = updateTaskDto.Status.ToEnum();
         task.UserId = updateTaskDto.UserId;
+        task.AssignedToName = updateTaskDto.AssignedToName;
         task.UpdatedAt = DateTime.UtcNow;
 
         _repository.UpdateTask(task);

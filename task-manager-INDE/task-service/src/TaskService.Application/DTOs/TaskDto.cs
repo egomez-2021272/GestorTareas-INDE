@@ -11,5 +11,6 @@ public class TaskDto
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public Guid? UserId { get; set; }
+    public string? AssignedToName { get; set; }
     public ICollection<TagDto> Tags { get; set; } = new List<TagDto>();
 }

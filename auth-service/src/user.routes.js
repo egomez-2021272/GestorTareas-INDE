@@ -3,6 +3,7 @@ import {
     createUser,
     createAdmin,
     activateAccount,
+    setPasswordOnActivation,
     login,
     updatePassword,
     forgotPassword,
@@ -120,6 +121,7 @@ const router = Router();
  *         description: Token inválido o expirado
  */
 router.get('/activate/:token', activateAccount);
+router.post('/activate/:token', validateResetPassword, setPasswordOnActivation);
 
 /**
  * @swagger
