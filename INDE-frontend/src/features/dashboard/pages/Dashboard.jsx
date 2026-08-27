@@ -110,11 +110,11 @@ export const Dashboard = () => {
 
   // Toggle etiquetas seleccionadas en formularios
   const toggleTagSelection = (form, setForm, tagId) => {
-    const currentTags = form.tagIds || [];
-    const updated = currentTags.includes(tagId)
-      ? currentTags.filter((id) => id !== tagId)
-      : [...currentTags, tagId];
-    setForm({ ...form, tagIds: updated });
+    const currentTagId = form.tagIds?.[0];
+    setForm({
+      ...form,
+      tagIds: currentTagId === tagId ? [] : [tagId],
+    });
   };
 
   // Nombre legible de estados
@@ -934,7 +934,7 @@ export const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Tags checkboxes */}
+              {/* Single tag selection */}
               <div>
                 <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
                   Etiquetas Relacionadas
@@ -949,12 +949,13 @@ export const Dashboard = () => {
                           className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none"
                         >
                           <input
-                            type="checkbox"
+                            type="radio"
+                            name="edit-task-tag"
                             checked={isChecked}
                             onChange={() =>
                               toggleTagSelection(editForm, setEditForm, tag.id)
                             }
-                            className="w-3.5 h-3.5 rounded text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
+                            className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
                           />
                           <span
                             style={{ color: tag.color }}
@@ -1118,7 +1119,7 @@ export const Dashboard = () => {
                 </div>
               )}
 
-              {/* Tags checkboxes */}
+              {/* Single tag selection */}
               <div>
                 <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
                   Asignar Etiquetas
@@ -1132,7 +1133,8 @@ export const Dashboard = () => {
                         className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none"
                       >
                         <input
-                          type="checkbox"
+                          type="radio"
+                          name="create-task-tag"
                           checked={isChecked}
                           onChange={() =>
                             toggleTagSelection(
@@ -1141,7 +1143,7 @@ export const Dashboard = () => {
                               tag.id,
                             )
                           }
-                          className="w-3.5 h-3.5 rounded text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
+                          className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
                         />
                         <span
                           style={{ color: tag.color }}
