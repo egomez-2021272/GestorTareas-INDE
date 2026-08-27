@@ -7,6 +7,13 @@
 .env
 .env.prod
 
+# .NET configuration files may contain connection strings and secrets
+**/appsettings.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+!**/appsettings.example.json
+!**/appsettings.Development.example.json
+
 # User-specific files
 *.rsuser
 *.suo
