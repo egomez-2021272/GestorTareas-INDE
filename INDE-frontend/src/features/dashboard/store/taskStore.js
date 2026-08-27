@@ -45,8 +45,8 @@ export const useTaskStore = create((set, get) => ({
       set({ tasks: response.data, backendConnected: true });
     } catch (error) {
       if (error.response && error.response.status === 401) {
-        localStorage.removeItem('auth-storage-inde');
-        window.location.href = '/login';
+        localStorage.removeItem("auth-storage-inde");
+        window.location.href = "/login";
         return;
       }
       console.warn(
@@ -67,9 +67,11 @@ export const useTaskStore = create((set, get) => ({
     // Obtener el nombre del usuario asignado
     let assignedToName = null;
     if (users && users.length > 0) {
-      const foundUser = users.find(u => (u.id || u._id) === targetUserId);
+      const foundUser = users.find((u) => (u.id || u._id) === targetUserId);
       if (foundUser) {
-        assignedToName = foundUser.firstName + (foundUser.surname ? ' ' + foundUser.surname : '');
+        assignedToName =
+          foundUser.firstName +
+          (foundUser.surname ? " " + foundUser.surname : "");
       }
     }
     if (!assignedToName && targetUserId === user?.id) {
@@ -129,13 +131,18 @@ export const useTaskStore = create((set, get) => ({
   updateTask: async (id, updatedFields) => {
     const { title, description, status, tagIds, userId } = updatedFields;
     const { user, users } = useAuthStore.getState();
+    const selectedTagIds = tagIds?.slice(0, 1) || [];
+    const previousTask = get().tasks.find((task) => task.id === id);
+    const oldTagIds = previousTask?.tags?.map((tag) => tag.id) || [];
 
     // Obtener el nombre del usuario asignado
     let assignedToName = null;
     if (users && users.length > 0) {
-      const foundUser = users.find(u => (u.id || u._id) === userId);
+      const foundUser = users.find((u) => (u.id || u._id) === userId);
       if (foundUser) {
-        assignedToName = foundUser.firstName + (foundUser.surname ? ' ' + foundUser.surname : '');
+        assignedToName =
+          foundUser.firstName +
+          (foundUser.surname ? " " + foundUser.surname : "");
       }
     }
     if (!assignedToName && userId === user?.id) {
@@ -147,9 +154,17 @@ export const useTaskStore = create((set, get) => ({
       tasks: state.tasks.map((t) => {
         if (t.id === id) {
           const associatedTags = state.tags.filter((tg) =>
-            tagIds?.includes(tg.id),
+            selectedTagIds.includes(tg.id),
           );
-          return { ...t, title, description, status, userId, assignedToName, tags: associatedTags };
+          return {
+            ...t,
+            title,
+            description,
+            status,
+            userId,
+            assignedToName,
+            tags: associatedTags,
+          };
         }
         return t;
       }),
@@ -166,13 +181,13 @@ export const useTaskStore = create((set, get) => ({
           assignedToName,
         });
 
-        // Obtener la tarea actual de la base de datos para ver sus etiquetas anteriores
-        const currentTask = get().tasks.find((t) => t.id === id);
-        const oldTagIds = currentTask?.tags?.map((t) => t.id) || [];
-
         // Identificar cuáles etiquetas agregar y cuáles quitar
-        const tagsToAdd = tagIds.filter((tid) => !oldTagIds.includes(tid));
-        const tagsToRemove = oldTagIds.filter((tid) => !tagIds.includes(tid));
+        const tagsToAdd = selectedTagIds.filter(
+          (tid) => !oldTagIds.includes(tid),
+        );
+        const tagsToRemove = oldTagIds.filter(
+          (tid) => !selectedTagIds.includes(tid),
+        );
 
         for (const tid of tagsToAdd) {
           await axios.post(`${API_URL}/tasks/${id}/tags/${tid}`);
