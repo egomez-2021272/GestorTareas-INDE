@@ -5,6 +5,10 @@
 *.userosscache
 *.sln.docstates
 
+# dotenv files
+.env
+.env.prod
+
 ## Build results
 [Dd]ebug/
 [Dd]ebugPublic/
