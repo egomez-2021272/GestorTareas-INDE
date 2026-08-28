@@ -19,7 +19,11 @@ export const LoginForm = () => {
     const result = await login(data);
 
     if (result.success) {
-      navigate("/dashboard");
+      if (result.requiresPasswordChange) {
+        navigate("/force-change-password");
+      } else {
+        navigate("/dashboard");
+      }
       console.log("Login successful");
     }
   };
@@ -91,6 +95,7 @@ export const LoginForm = () => {
             </label>
             <input
               type="text"
+              autoComplete="off"
               placeholder="Username"
               {...register("username", { required: "El usuario es requerido" })}
               className="w-full bg-[#313541] text-gray-100 border border-[#484d5a] focus:border-[#005b70] focus:ring-1 focus:ring-[#005b70] rounded-md px-3 py-2.5 outline-none transition-all placeholder:text-gray-500 text-sm"
@@ -109,6 +114,7 @@ export const LoginForm = () => {
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
                 placeholder="Password"
                 {...register("password", {
                   required: "La contraseña es requerida",

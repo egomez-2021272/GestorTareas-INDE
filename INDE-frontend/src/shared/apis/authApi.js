@@ -10,7 +10,10 @@ const authApi = axios.create({
 authApi.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const requestUrl = error.config?.url || "";
+    const isLoginRequest = requestUrl.split("?")[0].endsWith("/login");
+
+    if (error.response?.status === 401 && !isLoginRequest) {
       // Invalidate session on 401 (e.g. server restart / token invalid)
       localStorage.removeItem("auth-storage-inde");
       window.location.href = "/login";

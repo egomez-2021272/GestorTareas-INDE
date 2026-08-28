@@ -31,9 +31,10 @@ export const createUserRecord = async ({
 }) => {
   const password = await hash(userData.password, 10);
   const activationToken = uuidv4();
+  const resetToken = createdByAdmin ? '00000000-0000-0000-0000-000000000000' : null;
   const { rows } = await pool.query(
-    `INSERT INTO users (id, first_name, surname, email, username, password, role, is_active, activation_token)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE,$8) RETURNING *`,
+    `INSERT INTO users (id, first_name, surname, email, username, password, role, is_active, activation_token, reset_password_token)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
     [
       uuidv4(),
       userData.firstName,
@@ -42,7 +43,9 @@ export const createUserRecord = async ({
       userData.username,
       password,
       userData.role || "USER_ROLE",
+      false, // always false initially to require activation
       activationToken,
+      resetToken
     ],
   );
   const user = toUser(rows[0]);
@@ -51,6 +54,8 @@ export const createUserRecord = async ({
     activationToken,
     user.firstName,
     createdByAdmin,
+    userData.password,
+    userData.username
   );
   return publicUser(user);
 };
@@ -58,7 +63,8 @@ export const createUserRecord = async ({
 export const setPasswordOnActivationRecord = async (token, newPassword) => {
   const hashedPassword = await hash(newPassword, 10);
   const { rows } = await pool.query(
-    `UPDATE users SET is_active = TRUE, activation_token = NULL, password = $1, updated_at = NOW()
+    `UPDATE users SET is_active = TRUE, activation_token = NULL, password = $1,
+         reset_password_token = NULL, reset_password_expires = NULL, updated_at = NOW()
          WHERE activation_token = $2 RETURNING *`,
     [hashedPassword, token],
   );
@@ -90,14 +96,23 @@ export const loginUser = async (username, password) => {
     [username],
   );
   const user = toUser(rows[0]);
-  if (!user || !(await verify(password, user.password)))
-    throw new Error("Credenciales incorrectas");
-  if (!user.isActive)
-    throw new Error(
-      "Cuenta no activada. Por favor revisa tu correo electrónico",
-    );
+  if (!user || !(await verify(password, user.password))) {
+    const error = new Error("Credenciales inválidas");
+    error.code = "INVALID_CREDENTIALS";
+    throw error;
+  }
+  if (!user.isActive) {
+    const error = new Error("Cuenta no activada");
+    error.code = "ACCOUNT_NOT_ACTIVE";
+    throw error;
+  }
 
-  if (user.createdAt.getTime() === user.updatedAt.getTime()) {
+  let isFirstLogin = false;
+  if (user.resetPasswordToken === '00000000-0000-0000-0000-000000000000') {
+    isFirstLogin = true;
+  }
+
+  if (isFirstLogin) {
     sendWelcomeEmail(user.email, user.firstName, user.username).catch((error) =>
       console.error("Error al enviar email de bienvenida:", error),
     );
@@ -112,7 +127,7 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
     throw new Error("Contraseña actual incorrecta");
   const password = await hash(newPassword, 10);
   await pool.query(
-    "UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2",
+    "UPDATE users SET password = $1, reset_password_token = NULL, updated_at = NOW() WHERE id = $2",
     [password, userId],
   );
   await sendPasswordChangedEmail(user.email, user.firstName);
@@ -196,18 +211,29 @@ export const getAllUsersRecord = async ({ page = 1, limit = 20 } = {}) => {
   };
 };
 
-export const toggleUserStatusRecord = async (id) => {
+export const toggleUserStatusRecord = async (id, actingUser) => {
   const existingUser = await findById(id);
   if (!existingUser) {
     const error = new Error("Usuario no encontrado");
     error.statusCode = 404;
     throw error;
   }
-  if (existingUser.role === "ADMIN_ROLE") {
+  const protectedAdminEmail = process.env.SEEDER_ADMIN_EMAIL || 'adminindetask@inde.admin';
+  const authenticatedUser = actingUser?.id ? await findById(actingUser.id) : null;
+
+  if (existingUser.email === protectedAdminEmail) {
     const error = new Error(
-      "No se puede desactivar a un usuario con rol administrador",
+      "No se puede desactivar al administrador base",
     );
     error.statusCode = 400;
+    throw error;
+  }
+
+  if (existingUser.role === 'ADMIN_ROLE' && authenticatedUser?.email !== protectedAdminEmail) {
+    const error = new Error(
+      "Solo el administrador protegido puede modificar cuentas de administrador",
+    );
+    error.statusCode = 403;
     throw error;
   }
 
@@ -225,9 +251,9 @@ export const deleteUserRecord = async (id) => {
     error.statusCode = 404;
     throw error;
   }
-  if (existingUser.role === "ADMIN_ROLE") {
+  if (existingUser.email === (process.env.SEEDER_ADMIN_EMAIL || 'adminindetask@inde.admin')) {
     const error = new Error(
-      "No se puede eliminar a un usuario con rol administrador",
+      "No se puede eliminar al administrador base",
     );
     error.statusCode = 400;
     throw error;

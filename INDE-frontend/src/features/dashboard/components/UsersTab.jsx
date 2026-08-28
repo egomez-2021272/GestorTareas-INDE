@@ -3,7 +3,9 @@ import { Plus, Check, X, Shield, User as UserIcon } from "lucide-react";
 import { useAuthStore } from "../../auth/store/authStore";
 
 export const UsersTab = () => {
-  const { users, toggleUserStatus, createUserByAdmin } = useAuthStore();
+  const { users, user: actingUser, toggleUserStatus, createUserByAdmin } = useAuthStore();
+  const baseAdminEmail = import.meta.env.VITE_SEEDER_ADMIN_EMAIL || "adminindetask@inde.admin";
+  const isProtectedAdmin = actingUser?.email === baseAdminEmail;
   const [isCreating, setIsCreating] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -13,6 +15,7 @@ export const UsersTab = () => {
     surname: "",
     email: "",
     username: "",
+    password: "",
     role: "USER_ROLE",
   });
 
@@ -20,14 +23,9 @@ export const UsersTab = () => {
     e.preventDefault();
     setFormError(null);
 
-    // Auto-generar una contraseña segura aleatoria ya que el backend la requiere
-    const randomPassword =
-      "Temp" + Math.random().toString(36).slice(-8) + "A1*";
-
     // validateCreateUser requires acceptTerms and password
     const payload = {
       ...form,
-      password: randomPassword,
       acceptTerms: true,
       createdByAdmin: true,
     };
@@ -39,6 +37,7 @@ export const UsersTab = () => {
         surname: "",
         email: "",
         username: "",
+        password: "",
         role: "USER_ROLE",
       });
     } else {
@@ -50,9 +49,9 @@ export const UsersTab = () => {
   };
 
   const handleToggleStatus = (id, user) => {
-    if (user?.role === "ADMIN_ROLE" || user?.username === "admin") {
+    if (user?.email === baseAdminEmail) {
       window.alert(
-        "Los usuarios con rol administrador no pueden ser desactivados ni eliminados.",
+        "El administrador base no puede ser desactivado.",
       );
       return;
     }
@@ -150,9 +149,22 @@ export const UsersTab = () => {
                 onChange={(e) => setForm({ ...form, role: e.target.value })}
                 className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:border-[#0aa5b5] outline-none"
               >
-                <option value="USER_ROLE">Técnico (USER_ROLE)</option>
-                <option value="ADMIN_ROLE">Administrador (ADMIN_ROLE)</option>
+                <option value="USER_ROLE">Técnico</option>
+                <option value="ADMIN_ROLE">Administrador</option>
               </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                Contraseña Temporal
+              </label>
+              <input
+                type="text"
+                required
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:border-[#0aa5b5] outline-none"
+                placeholder="Mínimo 8 caracteres"
+              />
             </div>
             <div className="md:col-span-2 pt-2">
               <button
@@ -221,21 +233,25 @@ export const UsersTab = () => {
                       </span>
                     ) : (
                       <span className="bg-[#c95d5d]/20 text-[#c95d5d] px-2 py-1 rounded text-xs font-bold border border-[#c95d5d]/30">
-                        Inactivo
+                        Cuenta no activada
                       </span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {u.role !== "ADMIN_ROLE" && u.username !== "admin" ? (
+                    {u.email !== baseAdminEmail && (u.role !== "ADMIN_ROLE" || isProtectedAdmin) ? (
                       <button
                         onClick={() => handleToggleStatus(u._id, u)}
                         className={`text-xs px-3 py-1.5 rounded font-bold transition-colors ${u.isActive ? "bg-[#c95d5d]/10 text-[#c95d5d] hover:bg-[#c95d5d]/20" : "bg-[#669a71]/10 text-[#669a71] hover:bg-[#669a71]/20"}`}
                       >
                         {u.isActive ? "Desactivar" : "Activar Manual"}
                       </button>
-                    ) : (
+                    ) : u.email === baseAdminEmail ? (
                       <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider">
                         Admin protegido
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-wider">
+                        Solo admin base
                       </span>
                     )}
                   </td>

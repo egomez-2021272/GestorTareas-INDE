@@ -45,6 +45,7 @@ export const validateJWT = (req, res, next) => {
         req.user = {
             id: decoded.id || decoded.sub,
             username: decoded.username,
+            email: decoded.email,
             jti: decoded.jti, // ID único del token
             iat: decoded.iat, // Emitido en
             role: decoded.role || 'USER_ROLE', // Rol del usuario (default: USER_ROLE)

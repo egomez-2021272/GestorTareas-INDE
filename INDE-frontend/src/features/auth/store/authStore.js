@@ -17,6 +17,7 @@ export const useAuthStore = create(
       user: null,
       token: null,
       isAuthenticated: false,
+      requiresPasswordChange: false,
       loading: false,
       error: null,
       users: [],
@@ -37,13 +38,17 @@ export const useAuthStore = create(
             user: userWithName,
             token: data.data.token,
             isAuthenticated: true,
+            requiresPasswordChange: data.data.requiresPasswordChange,
             error: null,
           });
 
           toast.success(`Bienvenido ${name}`);
-          return { success: true };
+          return { success: true, requiresPasswordChange: data.data.requiresPasswordChange };
         } catch (err) {
           const message =
+            ["ACCOUNT_NOT_ACTIVE", "INVALID_CREDENTIALS"].includes(err.response?.data?.code)
+              ? err.response.data.message
+              :
             err.response?.data?.error ||
             err.response?.data?.message ||
             "Error al iniciar sesión";
@@ -54,6 +59,8 @@ export const useAuthStore = create(
           set({ loading: false });
         }
       },
+
+      completePasswordChange: () => set({ requiresPasswordChange: false }),
 
       registerUser: async (userData) => {
         try {
@@ -104,16 +111,19 @@ export const useAuthStore = create(
 
       toggleUserStatus: async (id) => {
         try {
-          const { token, users } = get();
+          const { token, users, user: actingUser } = get();
           const targetUser = users.find((u) => (u.id || u._id) === id);
 
           if (!targetUser) {
             throw new Error("Usuario no encontrado");
           }
 
-          if (targetUser.role === "ADMIN_ROLE") {
+          const protectedAdminEmail = import.meta.env.VITE_SEEDER_ADMIN_EMAIL || "adminindetask@inde.admin";
+          const isProtectedAdmin = actingUser?.email === protectedAdminEmail;
+
+          if (targetUser.role === "ADMIN_ROLE" && !isProtectedAdmin) {
             const message =
-              "No se puede desactivar a un usuario con rol administrador.";
+              "Solo el administrador protegido puede modificar cuentas de administrador.";
             toast.error(message);
             return { success: false, error: message };
           }
