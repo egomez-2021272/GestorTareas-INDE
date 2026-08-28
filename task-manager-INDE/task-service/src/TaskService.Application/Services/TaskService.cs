@@ -9,10 +9,12 @@ namespace TaskService.Application.Services;
 public class TaskService : ITaskService
 {
     private readonly ITaskRepository _repository;
+    private readonly INotificationService _notificationService;
 
-    public TaskService(ITaskRepository repository)
+    public TaskService(ITaskRepository repository, INotificationService notificationService)
     {
         _repository = repository;
+        _notificationService = notificationService;
     }
 
     public async Task<IEnumerable<TaskDto>> GetAllTasksAsync(Guid? userId = null)
@@ -34,13 +36,38 @@ public class TaskService : ITaskService
             Title = createTaskDto.Title,
             Description = createTaskDto.Description,
             Status = createTaskDto.Status.ToEnum(),
-            UserId = createTaskDto.UserId,
-            AssignedToName = createTaskDto.AssignedToName,
             CreatedAt = DateTime.UtcNow
         };
 
+        // Crear asignaciones de usuarios
+        var userIdsList = createTaskDto.UserIds.ToList();
+        var assignedToNamesList = createTaskDto.AssignedToNames.ToList();
+        
+        for (int i = 0; i < userIdsList.Count; i++)
+        {
+            task.TaskAssignments.Add(new TaskAssignment
+            {
+                UserId = userIdsList[i],
+                AssignedToName = assignedToNamesList[i],
+                AssignedAt = DateTime.UtcNow
+            });
+        }
+
         await _repository.AddTaskAsync(task);
         await _repository.SaveChangesAsync();
+
+        // Enviar notificación a cada usuario asignado después de crear la tarea
+        foreach (var assignment in task.TaskAssignments)
+        {
+            await _notificationService.CreateNotificationAsync(new CreateNotificationDto
+            {
+                UserId = assignment.UserId,
+                Title = "Nueva Tarea Asignada",
+                Message = $"Has sido asignado a la tarea: {task.Title}",
+                Type = "TASK_ASSIGNMENT",
+                RelatedTaskId = task.Id
+            });
+        }
 
         return task.ToDto();
     }
@@ -53,9 +80,23 @@ public class TaskService : ITaskService
         task.Title = updateTaskDto.Title;
         task.Description = updateTaskDto.Description;
         task.Status = updateTaskDto.Status.ToEnum();
-        task.UserId = updateTaskDto.UserId;
-        task.AssignedToName = updateTaskDto.AssignedToName;
+        task.IsDisabled = updateTaskDto.IsDisabled;
         task.UpdatedAt = DateTime.UtcNow;
+
+        // Actualizar asignaciones de usuarios
+        task.TaskAssignments.Clear();
+        var userIdsList = updateTaskDto.UserIds.ToList();
+        var assignedToNamesList = updateTaskDto.AssignedToNames.ToList();
+        
+        for (int i = 0; i < userIdsList.Count; i++)
+        {
+            task.TaskAssignments.Add(new TaskAssignment
+            {
+                UserId = userIdsList[i],
+                AssignedToName = assignedToNamesList[i],
+                AssignedAt = DateTime.UtcNow
+            });
+        }
 
         _repository.UpdateTask(task);
         await _repository.SaveChangesAsync();
@@ -68,7 +109,11 @@ public class TaskService : ITaskService
         var task = await _repository.GetTaskByIdAsync(id);
         if (task == null) return false;
 
-        _repository.DeleteTask(task);
+        // Soft delete: cambiar estado IsDisabled en lugar de eliminar
+        task.IsDisabled = true;
+        task.UpdatedAt = DateTime.UtcNow;
+        
+        _repository.UpdateTask(task);
         return await _repository.SaveChangesAsync();
     }
 

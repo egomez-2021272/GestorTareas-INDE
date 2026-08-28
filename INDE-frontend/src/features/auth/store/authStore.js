@@ -10,6 +10,7 @@ import {
   createAdminRequest,
 } from "../../../shared/apis/authApi";
 import toast from "react-hot-toast";
+import axios from "axios";
 
 export const useAuthStore = create(
   persist(
@@ -43,6 +44,23 @@ export const useAuthStore = create(
           });
 
           toast.success(`Bienvenido ${name}`);
+
+          // Registrar auditoría de inicio de sesión
+          try {
+            await axios.post("http://localhost:5214/api/auditlogs", {
+              userId: userObj.id || userObj._id,
+              userName: name,
+              userRole: userObj.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+              action: "LOGIN",
+              entityType: "User",
+              entityId: userObj.id || userObj._id,
+              description: `Inició sesión en el sistema.`,
+              ipAddress: "127.0.0.1"
+            });
+          } catch (logErr) {
+            console.error("Error writing login audit log:", logErr);
+          }
+
           return { success: true, requiresPasswordChange: data.data.requiresPasswordChange };
         } catch (err) {
           const message =
@@ -136,6 +154,25 @@ export const useAuthStore = create(
 
           await toggleUserStatusRequest(id, token);
           toast.success("Estado de usuario actualizado");
+
+          // Registrar auditoría de toggle status
+          if (actingUser) {
+            try {
+              await axios.post("http://localhost:5214/api/auditlogs", {
+                userId: actingUser.id || actingUser._id,
+                userName: actingUser.name || actingUser.username,
+                userRole: actingUser.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+                action: "TOGGLE_USER_STATUS",
+                entityType: "User",
+                entityId: id,
+                description: `Cambió el estado (activo/inactivo) del usuario con ID: ${id}.`,
+                ipAddress: "127.0.0.1"
+              });
+            } catch (logErr) {
+              console.error("Error logging toggle status:", logErr);
+            }
+          }
+
           return { success: true };
         } catch (err) {
           await get().fetchUsers();
@@ -160,6 +197,25 @@ export const useAuthStore = create(
           }
           toast.success(res.data.message || "Usuario creado exitosamente");
           await get().fetchUsers();
+
+          // Registrar auditoría de creación de usuario
+          const actingUser = get().user;
+          if (actingUser) {
+            try {
+              await axios.post("http://localhost:5214/api/auditlogs", {
+                userId: actingUser.id || actingUser._id,
+                userName: actingUser.name || actingUser.username,
+                userRole: actingUser.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+                action: "CREATE_USER",
+                entityType: "User",
+                description: `Creó un nuevo usuario: "${userData.firstName} ${userData.surname || ''}" (${userData.username}) con el rol: ${role === "ADMIN_ROLE" ? "Administrador" : "Técnico"}.`,
+                ipAddress: "127.0.0.1"
+              });
+            } catch (logErr) {
+              console.error("Error logging user creation:", logErr);
+            }
+          }
+
           return { success: true };
         } catch (err) {
           const message =

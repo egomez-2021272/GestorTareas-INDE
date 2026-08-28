@@ -11,6 +11,9 @@ public class AppDbContext : DbContext
 
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +25,16 @@ public class AppDbContext : DbContext
             .WithMany(t => t.Tasks)
             .UsingEntity(j => j.ToTable("task_item_tags"));
 
+        // Configuración de la relación Muchos a Muchos entre Tareas y Usuarios
+        modelBuilder.Entity<TaskAssignment>()
+            .HasKey(ta => new { ta.TaskId, ta.UserId });
+
+        modelBuilder.Entity<TaskAssignment>()
+            .HasOne(ta => ta.Task)
+            .WithMany(t => t.TaskAssignments)
+            .HasForeignKey(ta => ta.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Mapeo y restricciones para la tabla de Tareas
         modelBuilder.Entity<TaskItem>(entity =>
         {
@@ -30,6 +43,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.Status).HasConversion<int>().IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.IsDisabled).HasDefaultValue(false);
         });
 
         // Mapeo y restricciones para la tabla de Etiquetas
@@ -38,6 +52,41 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Color).IsRequired().HasMaxLength(7); 
+        });
+
+        // Mapeo para TaskAssignment
+        modelBuilder.Entity<TaskAssignment>(entity =>
+        {
+            entity.Property(e => e.AssignedToName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.AssignedAt).IsRequired();
+        });
+
+        // Mapeo para Notification
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.IsRead).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).IsRequired();
+        });
+
+        // Mapeo para AuditLog
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.UserName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.UserRole).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.IpAddress).HasMaxLength(45);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.OldValues).HasColumnType("text");
+            entity.Property(e => e.NewValues).HasColumnType("text");
         });
     }
 }

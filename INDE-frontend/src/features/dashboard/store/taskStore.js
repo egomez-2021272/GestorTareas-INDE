@@ -60,23 +60,10 @@ export const useTaskStore = create((set, get) => ({
   },
 
   addTask: async (taskData) => {
-    const { title, description, status, tagIds, userId } = taskData;
+    const { title, description, status, tagIds, userIds, assignedToNames } = taskData;
     const { user, users } = useAuthStore.getState();
-    const targetUserId = userId || user?.id;
-
-    // Obtener el nombre del usuario asignado
-    let assignedToName = null;
-    if (users && users.length > 0) {
-      const foundUser = users.find((u) => (u.id || u._id) === targetUserId);
-      if (foundUser) {
-        assignedToName =
-          foundUser.firstName +
-          (foundUser.surname ? " " + foundUser.surname : "");
-      }
-    }
-    if (!assignedToName && targetUserId === user?.id) {
-      assignedToName = user?.name || user?.firstName;
-    }
+    const targetUserIds = userIds && userIds.length > 0 ? userIds : (user?.id ? [user.id] : []);
+    const targetAssignedToNames = assignedToNames && assignedToNames.length > 0 ? assignedToNames : (user?.name || user?.firstName ? [user?.name || user?.firstName] : []);
 
     // Generar objeto local temporal
     const localId = crypto.randomUUID
@@ -84,15 +71,21 @@ export const useTaskStore = create((set, get) => ({
       : Math.random().toString(36).substring(2);
     const associatedTags = get().tags.filter((t) => tagIds?.includes(t.id));
 
+    const assignedUsers = targetUserIds.map((uid, index) => ({
+      userId: uid,
+      assignedToName: targetAssignedToNames[index] || "",
+      assignedAt: new Date().toISOString()
+    }));
+
     const newTaskLocal = {
       id: localId,
       title,
       description,
       status: status || "ToDo",
-      userId: targetUserId,
-      assignedToName,
+      assignedUsers,
       createdAt: new Date().toISOString(),
       tags: associatedTags,
+      isDisabled: false,
     };
 
     // Agregar localmente
@@ -105,8 +98,8 @@ export const useTaskStore = create((set, get) => ({
           title,
           description,
           status: status || "ToDo",
-          userId: targetUserId,
-          assignedToName,
+          userIds: targetUserIds,
+          assignedToNames: targetAssignedToNames,
         });
 
         const createdTask = response.data;
@@ -122,6 +115,25 @@ export const useTaskStore = create((set, get) => ({
 
         // Refrescar para sincronizar IDs reales
         await get().fetchTasks();
+
+        // Registrar auditoría de creación de tarea
+        const { user } = useAuthStore.getState();
+        if (user) {
+          try {
+            await axios.post(`${API_URL}/auditlogs`, {
+              userId: user.id || user._id,
+              userName: user.name || user.username,
+              userRole: user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+              action: "CREATE_TASK",
+              entityType: "Task",
+              entityId: createdTask.id,
+              description: `Creó la tarea: "${createdTask.title}" con estado "${createdTask.status}".`,
+              ipAddress: "127.0.0.1"
+            });
+          } catch (logErr) {
+            console.error("Error logging task creation:", logErr);
+          }
+        }
       } catch (error) {
         console.error("Error al guardar tarea en el backend:", error);
       }
@@ -129,25 +141,11 @@ export const useTaskStore = create((set, get) => ({
   },
 
   updateTask: async (id, updatedFields) => {
-    const { title, description, status, tagIds, userId } = updatedFields;
+    const { title, description, status, tagIds, userIds, assignedToNames, isDisabled } = updatedFields;
     const { user, users } = useAuthStore.getState();
     const selectedTagIds = tagIds?.slice(0, 1) || [];
     const previousTask = get().tasks.find((task) => task.id === id);
     const oldTagIds = previousTask?.tags?.map((tag) => tag.id) || [];
-
-    // Obtener el nombre del usuario asignado
-    let assignedToName = null;
-    if (users && users.length > 0) {
-      const foundUser = users.find((u) => (u.id || u._id) === userId);
-      if (foundUser) {
-        assignedToName =
-          foundUser.firstName +
-          (foundUser.surname ? " " + foundUser.surname : "");
-      }
-    }
-    if (!assignedToName && userId === user?.id) {
-      assignedToName = user?.name || user?.firstName;
-    }
 
     // Actualizar localmente
     set((state) => ({
@@ -156,14 +154,22 @@ export const useTaskStore = create((set, get) => ({
           const associatedTags = state.tags.filter((tg) =>
             selectedTagIds.includes(tg.id),
           );
+          
+          const assignedUsers = (userIds && userIds.length > 0 ? userIds : (previousTask?.assignedUsers?.map(au => au.userId) || []))
+            .map((uid, index) => ({
+              userId: uid,
+              assignedToName: (assignedToNames && assignedToNames.length > 0 ? assignedToNames : previousTask?.assignedUsers?.map(au => au.assignedToName) || [])[index] || "",
+              assignedAt: new Date().toISOString()
+            }));
+
           return {
             ...t,
             title,
             description,
             status,
-            userId,
-            assignedToName,
+            assignedUsers,
             tags: associatedTags,
+            isDisabled: isDisabled !== undefined ? isDisabled : t.isDisabled,
           };
         }
         return t;
@@ -177,8 +183,9 @@ export const useTaskStore = create((set, get) => ({
           title,
           description,
           status,
-          userId,
-          assignedToName,
+          userIds: userIds || previousTask?.assignedUsers?.map(au => au.userId) || [],
+          assignedToNames: assignedToNames || previousTask?.assignedUsers?.map(au => au.assignedToName) || [],
+          isDisabled: isDisabled !== undefined ? isDisabled : previousTask?.isDisabled,
         });
 
         // Identificar cuáles etiquetas agregar y cuáles quitar
@@ -198,6 +205,25 @@ export const useTaskStore = create((set, get) => ({
 
         // Refrescar datos
         await get().fetchTasks();
+
+        // Registrar auditoría de actualización de tarea
+        const { user } = useAuthStore.getState();
+        if (user) {
+          try {
+            await axios.post(`${API_URL}/auditlogs`, {
+              userId: user.id || user._id,
+              userName: user.name || user.username,
+              userRole: user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+              action: "UPDATE_TASK",
+              entityType: "Task",
+              entityId: id,
+              description: `Actualizó la tarea: "${title}" (Estado: ${status}).`,
+              ipAddress: "127.0.0.1"
+            });
+          } catch (logErr) {
+            console.error("Error logging task update:", logErr);
+          }
+        }
       } catch (error) {
         console.error("Error al actualizar tarea en el backend:", error);
       }
@@ -205,6 +231,9 @@ export const useTaskStore = create((set, get) => ({
   },
 
   deleteTask: async (id) => {
+    const taskToDelete = get().tasks.find((t) => t.id === id);
+    const taskTitle = taskToDelete ? taskToDelete.title : id;
+
     // Eliminar localmente
     set((state) => ({
       tasks: state.tasks.filter((t) => t.id !== id),
@@ -213,6 +242,25 @@ export const useTaskStore = create((set, get) => ({
     if (get().backendConnected) {
       try {
         await axios.delete(`${API_URL}/tasks/${id}`);
+
+        // Registrar auditoría de eliminación de tarea
+        const { user } = useAuthStore.getState();
+        if (user) {
+          try {
+            await axios.post(`${API_URL}/auditlogs`, {
+              userId: user.id || user._id,
+              userName: user.name || user.username,
+              userRole: user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+              action: "DELETE_TASK",
+              entityType: "Task",
+              entityId: id,
+              description: `Eliminó la tarea: "${taskTitle}".`,
+              ipAddress: "127.0.0.1"
+            });
+          } catch (logErr) {
+            console.error("Error logging task deletion:", logErr);
+          }
+        }
       } catch (error) {
         console.error("Error al eliminar tarea en el backend:", error);
       }

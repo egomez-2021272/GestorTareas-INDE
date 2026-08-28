@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import LogoInde from "../../../assets/img/indelogo.png";
 import { UsersTab } from "../components/UsersTab";
+import { NotificationsPanel } from "../components/NotificationsPanel";
 
 export const DashboardUser = () => {
   const { user, logout, users, fetchUsers } = useAuthStore();
@@ -27,6 +28,7 @@ export const DashboardUser = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Para mobile
   const [selectedTask, setSelectedTask] = useState(null); // Para modal de detalles
   const [isCreateOpen, setIsCreateOpen] = useState(false); // Sidebar de creación
+  const [taskToDeleteId, setTaskToDeleteId] = useState(null); // ID de la tarea a eliminar
 
   // Form states
   const [createForm, setCreateForm] = useState({
@@ -34,7 +36,8 @@ export const DashboardUser = () => {
     description: "",
     status: "ToDo",
     tagIds: [],
-    userId: "",
+    userIds: [],
+    assignedToNames: [],
   });
 
   const [editForm, setEditForm] = useState(null);
@@ -86,7 +89,8 @@ export const DashboardUser = () => {
       description: "",
       status: "ToDo",
       tagIds: [],
-      userId: "",
+      userIds: [],
+      assignedToNames: [],
     });
   };
 
@@ -101,11 +105,7 @@ export const DashboardUser = () => {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("¿Está seguro de eliminar esta tarea?")) {
-      deleteTask(id);
-      setSelectedTask(null);
-      setEditForm(null);
-    }
+    setTaskToDeleteId(id);
   };
 
   // Toggle etiquetas seleccionadas en formularios
@@ -239,6 +239,7 @@ export const DashboardUser = () => {
           </div>
 
           <div className="flex items-center space-x-4 self-end md:self-auto">
+            <NotificationsPanel />
             {activeTab === "tasks" && (
               <button
                 onClick={() => setIsCreateOpen(true)}
@@ -553,7 +554,9 @@ export const DashboardUser = () => {
                 description: task.description,
                 status: task.status,
                 tagIds: task.tags?.map((tag) => tag.id) || [],
-                userId: task.userId || "",
+                userIds: task.assignedUsers?.map(au => au.userId) || [],
+                assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                isDisabled: task.isDisabled || false,
               });
             }}
           />
@@ -593,6 +596,9 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -653,6 +659,9 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -713,6 +722,9 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -773,6 +785,9 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -870,38 +885,49 @@ export const DashboardUser = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Asignado a
+                    Asignado a (múltiples usuarios)
                   </label>
                   {isAdmin ? (
-                    <select
-                      value={editForm.userId || ""}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          userId: e.target.value || null,
-                        })
-                      }
-                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                    >
-                      <option value="">Sin Asignar</option>
+                    <div className="bg-[#12141a] border border-[#333a47] p-2 rounded-lg max-h-24 overflow-y-auto">
                       {users.map((u) => (
-                        <option key={u.id || u._id} value={u.id || u._id}>
-                          {u.firstName} {u.surname} ({u.username})
-                        </option>
+                        <label
+                          key={u.id || u._id}
+                          className="flex items-center space-x-2 text-xs text-[#e2e8f0] cursor-pointer select-none mb-1"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editForm.userIds?.includes(u.id || u._id) || false}
+                            onChange={(e) => {
+                              const userId = u.id || u._id;
+                              const userName = `${u.firstName} ${u.surname || ''}`;
+                              const currentUserIds = editForm.userIds || [];
+                              const currentNames = editForm.assignedToNames || [];
+                              
+                              if (e.target.checked) {
+                                setEditForm({
+                                  ...editForm,
+                                  userIds: [...currentUserIds, userId],
+                                  assignedToNames: [...currentNames, userName]
+                                });
+                              } else {
+                                setEditForm({
+                                  ...editForm,
+                                  userIds: currentUserIds.filter(id => id !== userId),
+                                  assignedToNames: currentNames.filter((_, i) => currentUserIds[i] !== userId)
+                                });
+                              }
+                            }}
+                            className="w-3 h-3 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
+                          />
+                          <span className="truncate">{u.firstName} {u.surname}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   ) : (
                     <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                      {(() => {
-                        if (!editForm.userId) return "Sin Asignar";
-                        if (editForm.userId === user?.id) return user?.name;
-                        const found = users.find(
-                          (u) => (u.id || u._id) === editForm.userId,
-                        );
-                        return found
-                          ? `${found.firstName} ${found.surname}`
-                          : "Asignado";
-                      })()}
+                      {editForm.assignedToNames?.length > 0 
+                        ? editForm.assignedToNames.join(', ') 
+                        : "Sin Asignar"}
                     </div>
                   )}
                 </div>
@@ -1102,20 +1128,34 @@ export const DashboardUser = () => {
               {isAdmin && (
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Asignar a
+                    Asignar a (múltiples usuarios)
                   </label>
-                  <select
-                    value={createForm.userId}
-                    onChange={(e) => setFormValue("userId", e.target.value)}
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                  >
-                    <option value="">Sin Asignar</option>
+                  <div className="bg-[#12141a] border border-[#333a47] p-3 rounded-lg max-h-32 overflow-y-auto">
                     {users.map((u) => (
-                      <option key={u.id || u._id} value={u.id || u._id}>
-                        {u.firstName} {u.surname} ({u.username})
-                      </option>
+                      <label
+                        key={u.id || u._id}
+                        className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none mb-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={createForm.userIds.includes(u.id || u._id)}
+                          onChange={(e) => {
+                            const userId = u.id || u._id;
+                            const userName = `${u.firstName} ${u.surname || ''}`;
+                            if (e.target.checked) {
+                              setFormValue("userIds", [...createForm.userIds, userId]);
+                              setFormValue("assignedToNames", [...createForm.assignedToNames, userName]);
+                            } else {
+                              setFormValue("userIds", createForm.userIds.filter(id => id !== userId));
+                              setFormValue("assignedToNames", createForm.assignedToNames.filter((_, i) => createForm.userIds[i] !== userId));
+                            }
+                          }}
+                          className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
+                        />
+                        <span>{u.firstName} {u.surname} ({u.username})</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
 
@@ -1174,6 +1214,42 @@ export const DashboardUser = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN (DESHABILITACIÓN) */}
+      {taskToDeleteId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#20242d]/90 border border-[#333a47] rounded-2xl p-6 max-w-sm w-full shadow-2xl relative animate-scaleIn">
+            <h3 className="text-lg font-bold text-white mb-2">Eliminar Tarea</h3>
+            <p className="text-sm text-[#94a3b8] mb-6">
+              ¿Deseas eliminar esta tarea? Se marcará como deshabilitada en la base de datos.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={() => setTaskToDeleteId(null)}
+                className="w-1/2 bg-[#2a2f3a] hover:bg-[#333a47] text-[#94a3b8] hover:text-white py-2.5 rounded-lg text-xs font-bold transition-all border border-[#333a47]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const task = tasks.find(t => t.id === taskToDeleteId);
+                  if (task) {
+                    updateTask(taskToDeleteId, { ...task, isDisabled: true });
+                    setSelectedTask(null);
+                    setEditForm(null);
+                  }
+                  setTaskToDeleteId(null);
+                }}
+                className="w-1/2 bg-[#c95d5d] hover:bg-red-600 text-white py-2.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-lg shadow-red-500/10"
+              >
+                Aceptar
+              </button>
+            </div>
           </div>
         </div>
       )}
