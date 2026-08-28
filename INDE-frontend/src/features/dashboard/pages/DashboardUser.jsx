@@ -17,7 +17,7 @@ import {
 import LogoInde from "../../../assets/img/indelogo.png";
 import { UsersTab } from "../components/UsersTab";
 
-export const Dashboard = () => {
+export const DashboardUser = () => {
   const { user, logout, users, fetchUsers } = useAuthStore();
   const { tasks, tags, fetchTasks, addTask, updateTask, deleteTask } =
     useTaskStore();

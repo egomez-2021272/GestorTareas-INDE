@@ -59,7 +59,7 @@ export const getAllUsers = async (req, res) => {
 export const toggleUserStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const user = await toggleUserStatusRecord(id);
+        const user = await toggleUserStatusRecord(id, req.user);
         res.status(200).json({ success: true, data: user });
     } catch (error) {
         res.status(error.statusCode || 500).json({ success: false, message: error.message });
@@ -113,6 +113,7 @@ export const login = async (req, res) => {
             {
                 id: user._id,
                 username: user.username,
+                email: user.email,
                 role: user.role
             },
             process.env.JWT_SECRET,
@@ -146,16 +147,30 @@ export const login = async (req, res) => {
             console.error('daily-positive-service no está disponible o tardó demasiado:', err.message);
         }
 
+        let requiresPasswordChange = false;
+        if (user.resetPasswordToken === '00000000-0000-0000-0000-000000000000') {
+            requiresPasswordChange = true;
+        }
+        // Eximir al admin base de este cambio obligatorio
+        if (user.email === process.env.SEEDER_ADMIN_EMAIL || user.username === 'admin') {
+            requiresPasswordChange = false;
+        }
+
         return res.status(200).json({
             success: true,
             message: 'Login exitoso',
-            data: { user, token, dailyMessage }
+            data: { user, token, dailyMessage, requiresPasswordChange }
         });
 
     } catch (e) {
         return res.status(401).json({
             success: false,
-            message: 'Error al iniciar sesión',
+            code: e.code || 'LOGIN_ERROR',
+            message: e.code === 'ACCOUNT_NOT_ACTIVE'
+                ? 'Cuenta no activada'
+                : e.code === 'INVALID_CREDENTIALS'
+                    ? 'Credenciales inválidas'
+                    : 'Error al iniciar sesión',
             error: e.message
         });
     }
