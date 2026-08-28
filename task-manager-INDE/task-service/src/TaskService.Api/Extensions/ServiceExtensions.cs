@@ -34,6 +34,11 @@ public static class ServiceExtensions
         // inyeccin de dependencias del Core y Persistencia
         services.AddScoped<ITaskRepository, TaskRepository>();
         services.AddScoped<ITaskService, TaskService.Application.Services.TaskService>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<INotificationService, TaskService.Application.Services.NotificationService>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IAuditLogService, TaskService.Application.Services.AuditLogService>();
+        services.AddScoped<IDatabaseBackupService, TaskService.Application.Services.DatabaseBackupService>();
         services.AddValidatorsFromAssembly(typeof(ITaskService).Assembly);
 
         // habilitar soporte de health Checks

@@ -14,7 +14,7 @@ export const TaskList = ({ tasks, onTaskSelect, users }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
         {columns.map((column) => {
           const columnTasks = tasks.filter(
-            (task) => task.status === column.status,
+            (task) => task.status === column.status && !task.isDisabled,
           );
 
           return (
@@ -59,7 +59,22 @@ export const TaskList = ({ tasks, onTaskSelect, users }) => {
 const TaskCard = ({ task, isCompleted, onSelect, users }) => {
   const { user: currentUser } = useAuthStore();
   
-  const getAssignedName = () => {
+  const getAssignedNames = () => {
+    // Usar la nueva estructura assignedUsers
+    if (task.assignedUsers && task.assignedUsers.length > 0) {
+      const names = task.assignedUsers.map(au => {
+        if (au.userId === currentUser?.id) return "mí";
+        return au.assignedToName;
+      });
+      
+      if (names.length === 1) {
+        return names[0] === "mí" ? "Asignado a mí" : `Asignado a: ${names[0]}`;
+      } else {
+        return `Asignado a: ${names.join(', ')}`;
+      }
+    }
+    
+    // Compatibilidad con estructura antigua
     if (task.assignedToName) {
       if (task.userId === currentUser?.id) return "Asignado a mí";
       return `Asignado a: ${task.assignedToName}`;
@@ -74,7 +89,7 @@ const TaskCard = ({ task, isCompleted, onSelect, users }) => {
     return "Asignado";
   };
   
-  const assignedName = getAssignedName();
+  const assignedName = getAssignedNames();
 
   return (
     <div

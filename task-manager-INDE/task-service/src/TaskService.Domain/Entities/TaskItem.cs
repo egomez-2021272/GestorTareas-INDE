@@ -10,9 +10,10 @@ public class TaskItem
     public Enums.TaskStatus Status { get; set; } = Enums.TaskStatus.ToDo; 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+    public bool IsDisabled { get; set; } = false;
 
-    public Guid? UserId { get; set; }
-    public string? AssignedToName { get; set; }
+    // Relación muchos a muchos con usuarios a través de TaskAssignment
+    public ICollection<TaskAssignment> TaskAssignments { get; set; } = new List<TaskAssignment>();
     public ICollection<Tag> Tags { get; set; } = new List<Tag>();
 }
 //Representa una tarjeta o la tarea en un tablero

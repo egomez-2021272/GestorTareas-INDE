@@ -3,6 +3,8 @@ import { useAuthStore } from "../../auth/store/authStore";
 import { useTaskStore } from "../store/taskStore";
 import { TaskList } from "../components/TaskList";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
 import {
   BarChart3,
   CheckSquare,
@@ -13,10 +15,14 @@ import {
   Users,
   Trash2,
   Tag,
+  Database,
+  Download,
+  FileText,
 } from "lucide-react";
 import LogoInde from "../../../assets/img/indelogo.png";
 import { UsersTab } from "../components/UsersTab";
 import { BitacoraTab } from "../components/BitacoraTab";
+import { NotificationsPanel } from "../components/NotificationsPanel";
 
 export const DashboardAdmin = () => {
   const { user, logout, users, fetchUsers } = useAuthStore();
@@ -28,6 +34,41 @@ export const DashboardAdmin = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Para mobile
   const [selectedTask, setSelectedTask] = useState(null); // Para modal de detalles
   const [isCreateOpen, setIsCreateOpen] = useState(false); // Sidebar de creación
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false); // Modal de backups
+  const [taskToDeleteId, setTaskToDeleteId] = useState(null); // ID de la tarea a eliminar
+
+  const handleDownload = async (url, filename, action, description) => {
+    const loadingToast = toast.loading("Generando archivo...");
+    try {
+      const response = await axios.get(url, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      // Registrar auditoría en base de datos
+      if (user) {
+        await axios.post('http://localhost:5214/api/auditlogs', {
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role === 'ADMIN_ROLE' ? 'Administrador' : 'Técnico',
+          action: action,
+          entityType: 'System',
+          description: description,
+          ipAddress: '127.0.0.1'
+        });
+      }
+      toast.success("Archivo descargado y registrado en la bitácora", { id: loadingToast });
+    } catch (err) {
+      console.error("Error al descargar:", err);
+      toast.error("Error al generar o descargar el archivo", { id: loadingToast });
+    }
+  };
 
   // Form states
   const [createForm, setCreateForm] = useState({
@@ -35,7 +76,8 @@ export const DashboardAdmin = () => {
     description: "",
     status: "ToDo",
     tagIds: [],
-    userId: "",
+    userIds: [],
+    assignedToNames: [],
   });
 
   const [editForm, setEditForm] = useState(null);
@@ -87,7 +129,8 @@ export const DashboardAdmin = () => {
       description: "",
       status: "ToDo",
       tagIds: [],
-      userId: "",
+      userIds: [],
+      assignedToNames: [],
     });
   };
 
@@ -102,11 +145,7 @@ export const DashboardAdmin = () => {
   };
 
   const handleDelete = (id) => {
-    if (window.confirm("¿Está seguro de eliminar esta tarea?")) {
-      deleteTask(id);
-      setSelectedTask(null);
-      setEditForm(null);
-    }
+    setTaskToDeleteId(id);
   };
 
   // Toggle etiquetas seleccionadas en formularios
@@ -212,11 +251,11 @@ export const DashboardAdmin = () => {
 
         <div className="pt-4 border-t border-[#333a47] space-y-2">
           <button
-            onClick={() => {/* Lógica para descargar backup */}}
+            onClick={() => setIsBackupModalOpen(true)}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm text-[#0aa5b5] hover:bg-[#0aa5b5]/10 transition-colors"
           >
-            <CheckSquare size={18} />
-            <span>Descargar Backup</span>
+            <Database size={18} />
+            <span>Descargar Backup y Bitácora</span>
           </button>
           <button
             onClick={handleLogout}
@@ -259,6 +298,7 @@ export const DashboardAdmin = () => {
           </div>
 
           <div className="flex items-center space-x-4 self-end md:self-auto">
+            <NotificationsPanel />
             {activeTab === "tasks" && (
               <button
                 onClick={() => setIsCreateOpen(true)}
@@ -573,7 +613,9 @@ export const DashboardAdmin = () => {
                 description: task.description,
                 status: task.status,
                 tagIds: task.tags?.map((tag) => tag.id) || [],
-                userId: task.userId || "",
+                userIds: task.assignedUsers?.map(au => au.userId) || [],
+                assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                isDisabled: task.isDisabled || false,
               });
             }}
           />
@@ -616,6 +658,9 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -676,6 +721,9 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -736,6 +784,9 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -796,6 +847,9 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
+                            userIds: task.assignedUsers?.map(au => au.userId) || [],
+                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            isDisabled: task.isDisabled || false,
                           });
                         }}
                         className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
@@ -893,38 +947,49 @@ export const DashboardAdmin = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Asignado a
+                    Asignado a (múltiples usuarios)
                   </label>
                   {isAdmin ? (
-                    <select
-                      value={editForm.userId || ""}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          userId: e.target.value || null,
-                        })
-                      }
-                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                    >
-                      <option value="">Sin Asignar</option>
+                    <div className="bg-[#12141a] border border-[#333a47] p-2 rounded-lg max-h-24 overflow-y-auto">
                       {users.map((u) => (
-                        <option key={u.id || u._id} value={u.id || u._id}>
-                          {u.firstName} {u.surname} ({u.username})
-                        </option>
+                        <label
+                          key={u.id || u._id}
+                          className="flex items-center space-x-2 text-xs text-[#e2e8f0] cursor-pointer select-none mb-1"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editForm.userIds?.includes(u.id || u._id) || false}
+                            onChange={(e) => {
+                              const userId = u.id || u._id;
+                              const userName = `${u.firstName} ${u.surname || ''}`;
+                              const currentUserIds = editForm.userIds || [];
+                              const currentNames = editForm.assignedToNames || [];
+                              
+                              if (e.target.checked) {
+                                setEditForm({
+                                  ...editForm,
+                                  userIds: [...currentUserIds, userId],
+                                  assignedToNames: [...currentNames, userName]
+                                });
+                              } else {
+                                setEditForm({
+                                  ...editForm,
+                                  userIds: currentUserIds.filter(id => id !== userId),
+                                  assignedToNames: currentNames.filter((_, i) => currentUserIds[i] !== userId)
+                                });
+                              }
+                            }}
+                            className="w-3 h-3 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
+                          />
+                          <span className="truncate">{u.firstName} {u.surname}</span>
+                        </label>
                       ))}
-                    </select>
+                    </div>
                   ) : (
                     <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                      {(() => {
-                        if (!editForm.userId) return "Sin Asignar";
-                        if (editForm.userId === user?.id) return user?.name;
-                        const found = users.find(
-                          (u) => (u.id || u._id) === editForm.userId,
-                        );
-                        return found
-                          ? `${found.firstName} ${found.surname}`
-                          : "Asignado";
-                      })()}
+                      {editForm.assignedToNames?.length > 0 
+                        ? editForm.assignedToNames.join(', ') 
+                        : "Sin Asignar"}
                     </div>
                   )}
                 </div>
@@ -1125,20 +1190,34 @@ export const DashboardAdmin = () => {
               {isAdmin && (
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Asignar a
+                    Asignar a (múltiples usuarios)
                   </label>
-                  <select
-                    value={createForm.userId}
-                    onChange={(e) => setFormValue("userId", e.target.value)}
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                  >
-                    <option value="">Sin Asignar</option>
+                  <div className="bg-[#12141a] border border-[#333a47] p-3 rounded-lg max-h-32 overflow-y-auto">
                     {users.map((u) => (
-                      <option key={u.id || u._id} value={u.id || u._id}>
-                        {u.firstName} {u.surname} ({u.username})
-                      </option>
+                      <label
+                        key={u.id || u._id}
+                        className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none mb-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={createForm.userIds.includes(u.id || u._id)}
+                          onChange={(e) => {
+                            const userId = u.id || u._id;
+                            const userName = `${u.firstName} ${u.surname || ''}`;
+                            if (e.target.checked) {
+                              setFormValue("userIds", [...createForm.userIds, userId]);
+                              setFormValue("assignedToNames", [...createForm.assignedToNames, userName]);
+                            } else {
+                              setFormValue("userIds", createForm.userIds.filter(id => id !== userId));
+                              setFormValue("assignedToNames", createForm.assignedToNames.filter((_, i) => createForm.userIds[i] !== userId));
+                            }
+                          }}
+                          className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
+                        />
+                        <span>{u.firstName} {u.surname} ({u.username})</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
 
@@ -1197,6 +1276,134 @@ export const DashboardAdmin = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE BACKUPS Y BITACORA */}
+      {isBackupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#20242d]/90 border border-[#333a47]/80 rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative animate-slideUp">
+            <button
+              onClick={() => setIsBackupModalOpen(false)}
+              className="absolute top-4 right-4 text-[#94a3b8] hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center space-x-2">
+                <Database className="text-[#0aa5b5]" size={22} />
+                <span>Copias de Seguridad y Bitácora</span>
+              </h3>
+              <p className="text-xs text-[#94a3b8] mt-2">
+                Selecciona la opción de copia de seguridad o reporte de auditoría que deseas descargar de la base de datos PostgreSQL.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Opción 1: SQL Dump */}
+              <div className="bg-[#2a2f3a] p-4 rounded-xl border border-[#333a47] flex flex-col justify-between hover:border-[#0aa5b5]/50 transition-all duration-200">
+                <div className="flex items-start space-x-3">
+                  <div className="p-2.5 rounded-lg bg-[#0aa5b5]/10 text-[#0aa5b5] border border-[#0aa5b5]/20">
+                    <Database size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Base de Datos Completa (SQL)</h4>
+                    <p className="text-xs text-[#94a3b8] mt-0.5">
+                      Contiene la estructura completa (esquemas, tablas) y los datos registrados (tareas, bitácora).
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDownload('http://localhost:5214/api/backups/download', `backup_${new Date().toISOString().slice(0,10)}.sql`, 'DOWNLOAD_BACKUP', 'Descargó copia de seguridad de la base de datos (SQL)')}
+                  className="mt-3 w-full py-2 bg-[#0aa5b5] hover:bg-[#22c1d3] text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Download size={14} />
+                  <span>Descargar SQL</span>
+                </button>
+              </div>
+
+              {/* Opción 2: Bitácora CSV */}
+              <div className="bg-[#2a2f3a] p-4 rounded-xl border border-[#333a47] flex flex-col justify-between hover:border-[#0aa5b5]/50 transition-all duration-200">
+                <div className="flex items-start space-x-3">
+                  <div className="p-2.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Bitácora de Auditoría (CSV)</h4>
+                    <p className="text-xs text-[#94a3b8] mt-0.5">
+                      Exporta el historial de acciones de los usuarios en formato de hoja de cálculo.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDownload('http://localhost:5214/api/auditlogs/export/csv', `audit_logs_${new Date().toISOString().slice(0,10)}.csv`, 'EXPORT_BITACORA_CSV', 'Exportó la bitácora de actividades en formato CSV')}
+                  className="mt-3 w-full py-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Download size={14} />
+                  <span>Exportar CSV</span>
+                </button>
+              </div>
+
+              {/* Opción 3: Bitácora JSON */}
+              <div className="bg-[#2a2f3a] p-4 rounded-xl border border-[#333a47] flex flex-col justify-between hover:border-[#0aa5b5]/50 transition-all duration-200">
+                <div className="flex items-start space-x-3">
+                  <div className="p-2.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Bitácora de Auditoría (JSON)</h4>
+                    <p className="text-xs text-[#94a3b8] mt-0.5">
+                      Exporta el historial de auditoría del sistema estructurado en formato JSON.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDownload('http://localhost:5214/api/auditlogs/export/json', `audit_logs_${new Date().toISOString().slice(0,10)}.json`, 'EXPORT_BITACORA_JSON', 'Exportó la bitácora de actividades en formato JSON')}
+                  className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  <Download size={14} />
+                  <span>Exportar JSON</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE ELIMINACIÓN (DESHABILITACIÓN) */}
+      {taskToDeleteId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#20242d]/90 border border-[#333a47] rounded-2xl p-6 max-w-sm w-full shadow-2xl relative animate-scaleIn">
+            <h3 className="text-lg font-bold text-white mb-2">Eliminar Tarea</h3>
+            <p className="text-sm text-[#94a3b8] mb-6">
+              ¿Deseas eliminar esta tarea? Se marcará como deshabilitada en la base de datos.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={() => setTaskToDeleteId(null)}
+                className="w-1/2 bg-[#2a2f3a] hover:bg-[#333a47] text-[#94a3b8] hover:text-white py-2.5 rounded-lg text-xs font-bold transition-all border border-[#333a47]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const task = tasks.find(t => t.id === taskToDeleteId);
+                  if (task) {
+                    updateTask(taskToDeleteId, { ...task, isDisabled: true });
+                    setSelectedTask(null);
+                    setEditForm(null);
+                  }
+                  setTaskToDeleteId(null);
+                }}
+                className="w-1/2 bg-[#c95d5d] hover:bg-red-600 text-white py-2.5 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-lg shadow-red-500/10"
+              >
+                Aceptar
+              </button>
+            </div>
           </div>
         </div>
       )}
