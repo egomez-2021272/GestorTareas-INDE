@@ -41,6 +41,7 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(150);
             entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.AcceptanceCriteria).HasMaxLength(2000);
             entity.Property(e => e.Status).HasConversion<int>().IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.Property(e => e.IsDisabled).HasDefaultValue(false);

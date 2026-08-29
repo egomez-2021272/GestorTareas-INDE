@@ -33,19 +33,24 @@ export const DashboardAdmin = () => {
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, tasks, users
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Para mobile
   const [selectedTask, setSelectedTask] = useState(null); // Para modal de detalles
+  const [taskActivity, setTaskActivity] = useState([]);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false); // Sidebar de creación
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false); // Modal de backups
+
   const [taskToDeleteId, setTaskToDeleteId] = useState(null); // ID de la tarea a eliminar
 
   const handleDownload = async (url, filename, action, description) => {
     const loadingToast = toast.loading("Generando archivo...");
     try {
-      const response = await axios.get(url, { responseType: 'blob' });
-      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      const response = await axios.get(url, { responseType: "blob" });
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"],
+      });
       const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = downloadUrl;
-      link.setAttribute('download', filename);
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -53,27 +58,35 @@ export const DashboardAdmin = () => {
 
       // Registrar auditoría en base de datos
       if (user) {
-        await axios.post('http://localhost:5214/api/auditlogs', {
+        await axios.post("http://localhost:5214/api/auditlogs", {
           userId: user.id,
           userName: user.name,
-          userRole: user.role === 'ADMIN_ROLE' ? 'Administrador' : 'Técnico',
+          userRole: user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
           action: action,
-          entityType: 'System',
+          entityType: "System",
           description: description,
-          ipAddress: '127.0.0.1'
+          ipAddress: "127.0.0.1",
         });
       }
-      toast.success("Archivo descargado y registrado en la bitácora", { id: loadingToast });
+      toast.success("Archivo descargado y registrado en la bitácora", {
+        id: loadingToast,
+      });
     } catch (err) {
       console.error("Error al descargar:", err);
-      toast.error("Error al generar o descargar el archivo", { id: loadingToast });
+      toast.error("Error al generar o descargar el archivo", {
+        id: loadingToast,
+      });
     }
   };
 
   // Form states
   const [createForm, setCreateForm] = useState({
     title: "",
+    theme: "",
+    epic: "",
+    userStories: "",
     description: "",
+    acceptanceCriteria: "",
     status: "ToDo",
     tagIds: [],
     userIds: [],
@@ -88,6 +101,28 @@ export const DashboardAdmin = () => {
       fetchUsers();
     }
   }, []);
+
+  useEffect(() => {
+    if (!selectedTask) {
+      setTaskActivity([]);
+      return;
+    }
+
+    const loadTaskActivity = async () => {
+      try {
+        const response = await axios.get("http://localhost:5214/api/auditlogs");
+        const filtered = response.data.filter(
+          (log) => String(log.entityId) === String(selectedTask.id),
+        );
+        setTaskActivity(filtered.slice(0, 8));
+      } catch (error) {
+        console.error("Error cargando actividad de tarea:", error);
+        setTaskActivity([]);
+      }
+    };
+
+    loadTaskActivity();
+  }, [selectedTask]);
 
   const handleLogout = () => {
     logout();
@@ -122,11 +157,34 @@ export const DashboardAdmin = () => {
     e.preventDefault();
     if (!createForm.title.trim()) return;
 
-    addTask(createForm);
+    const descriptionText = [createForm.theme, createForm.epic]
+      .filter(Boolean)
+      .join("\n");
+    const acceptanceItems = ensureAcceptanceItems(
+      createForm.acceptanceCriteria || "",
+    );
+    const sanitizedAcceptanceItems = acceptanceItems.filter((item) =>
+      item.label?.trim(),
+    );
+    const acceptanceText = sanitizedAcceptanceItems.length
+      ? serializeAcceptanceChecklist(sanitizedAcceptanceItems)
+      : "[x] Validar la tarea según el criterio definido";
+
+    addTask({
+      ...createForm,
+      description: descriptionText || createForm.description,
+      acceptanceCriteria: acceptanceText,
+      status: "ToDo",
+    });
+
     setIsCreateOpen(false);
     setCreateForm({
       title: "",
+      theme: "",
+      epic: "",
+      userStories: "",
       description: "",
+      acceptanceCriteria: "",
       status: "ToDo",
       tagIds: [],
       userIds: [],
@@ -139,7 +197,22 @@ export const DashboardAdmin = () => {
     e.preventDefault();
     if (!editForm) return;
 
-    updateTask(editForm.id, editForm);
+    const normalizedDescription = [editForm.theme || "", editForm.epic || ""]
+      .filter(Boolean)
+      .join("\n");
+    const normalizedAcceptanceCriteria =
+      serializeAcceptanceChecklist(
+        parseAcceptanceChecklist(editForm.acceptanceCriteria),
+      ) ||
+      editForm.userStories?.trim() ||
+      editForm.acceptanceCriteria ||
+      "";
+
+    updateTask(editForm.id, {
+      ...editForm,
+      description: normalizedDescription || editForm.description,
+      acceptanceCriteria: normalizedAcceptanceCriteria,
+    });
     setSelectedTask(null);
     setEditForm(null);
   };
@@ -157,6 +230,24 @@ export const DashboardAdmin = () => {
     });
   };
 
+  const toggleUserSelection = (userId, userName) => {
+    setCreateForm((prev) => {
+      const exists = prev.userIds.includes(userId);
+      const nextUserIds = exists
+        ? prev.userIds.filter((id) => id !== userId)
+        : [...prev.userIds, userId];
+      const nextAssignedNames = exists
+        ? prev.assignedToNames.filter((name) => name !== userName)
+        : [...prev.assignedToNames, userName];
+
+      return {
+        ...prev,
+        userIds: nextUserIds,
+        assignedToNames: nextAssignedNames,
+      };
+    });
+  };
+
   // Nombre legible de estados
   const getStatusLabel = (status) => {
     switch (status) {
@@ -171,6 +262,41 @@ export const DashboardAdmin = () => {
       default:
         return status;
     }
+  };
+
+  const parseChecklist = (value = "") =>
+    value
+      .split(/\n|•|;|\-/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 6);
+
+  const parseAcceptanceChecklist = (value = "") =>
+    value
+      .split(/\n/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const checked = /^\[(x|X|✓|✔)\]/.test(item);
+        const label = item.replace(/^\[(?:x|X|✓|✔|\s)\]\s*/, "").trim();
+        return { label, checked };
+      })
+      .filter((item) => item.label);
+
+  const serializeAcceptanceChecklist = (items = []) =>
+    items
+      .map((item) => `${item.checked ? "[x]" : "[ ]"} ${item.label}`.trim())
+      .join("\n");
+
+  const ensureAcceptanceItems = (value = "") => {
+    const parsed = parseAcceptanceChecklist(value);
+    if (parsed.length > 0) {
+      return parsed.map((item, index) => ({
+        ...item,
+        id: `${index}-${item.label || "criterion"}`,
+      }));
+    }
+    return [{ id: `new-${Date.now()}`, label: "", checked: true }];
   };
 
   return (
@@ -607,14 +733,21 @@ export const DashboardAdmin = () => {
             users={users}
             onTaskSelect={(task) => {
               setSelectedTask(task);
+              setShowTaskDetails(false);
               setEditForm({
                 id: task.id,
                 title: task.title,
-                description: task.description,
+                theme: task.description?.split(/\n/)[0] || "",
+                epic: task.description?.split(/\n/).slice(1).join("\n") || "",
+                description: task.description || "",
                 status: task.status,
+                acceptanceCriteria: task.acceptanceCriteria || "",
+                userStories: task.acceptanceCriteria || "",
                 tagIds: task.tags?.map((tag) => tag.id) || [],
-                userIds: task.assignedUsers?.map(au => au.userId) || [],
-                assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                userIds:
+                  task.assignedUsers?.map((au) => String(au.userId)) || [],
+                assignedToNames:
+                  task.assignedUsers?.map((au) => au.assignedToName) || [],
                 isDisabled: task.isDisabled || false,
               });
             }}
@@ -658,8 +791,12 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -721,8 +858,12 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -784,8 +925,12 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -847,8 +992,12 @@ export const DashboardAdmin = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -890,14 +1039,20 @@ export const DashboardAdmin = () => {
       {/* DETAILED VIEW MODAL */}
       {selectedTask && editForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-[#20242d] rounded-2xl border border-[#333a47] w-full max-w-[500px] overflow-hidden shadow-2xl animate-fadeInScale">
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-[#333a47] bg-[#2a2f3a]">
-              <div className="flex items-center space-x-2">
-                <img src={LogoInde} alt="Logo" className="h-6" />
-                <h3 className="font-bold text-white text-sm">
-                  Detalles de Tarea
-                </h3>
+          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[860px] overflow-hidden shadow-2xl animate-fadeInScale">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#333a47] bg-[#2a2f3a]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#0aa5b5]/15 flex items-center justify-center text-[#0aa5b5]">
+                  <CheckSquare size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-[#94a3b8]">
+                    Tarea
+                  </p>
+                  <h3 className="font-bold text-white text-sm">
+                    {selectedTask.title}
+                  </h3>
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -910,211 +1065,424 @@ export const DashboardAdmin = () => {
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                  Título
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.title}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, title: e.target.value })
-                  }
-                  disabled={!isAdmin}
-                  className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
-                />
-              </div>
+            <div
+              className={`grid grid-cols-1 ${showTaskDetails ? "xl:grid-cols-[1.6fr_0.9fr]" : ""}`}
+            >
+              <form onSubmit={handleEditSubmit} className="p-5 space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
+                    {getStatusLabel(editForm.status)}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
+                    {selectedTask.tags?.length || 0} etiquetas
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
+                    {selectedTask.assignedUsers?.length ||
+                      editForm.assignedToNames?.length ||
+                      0}{" "}
+                    miembros
+                  </span>
+                </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                  Descripción Técnica
-                </label>
-                <textarea
-                  value={editForm.description}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, description: e.target.value })
-                  }
-                  disabled={!isAdmin}
-                  rows={4}
-                  className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
-                  placeholder="Detalles de la tarea..."
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Asignado a (múltiples usuarios)
+                    Título
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.title}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, title: e.target.value })
+                    }
+                    disabled={!isAdmin}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Tema
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.theme || ""}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, theme: e.target.value })
+                      }
+                      disabled={!isAdmin}
+                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Épica
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.epic || ""}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, epic: e.target.value })
+                      }
+                      disabled={!isAdmin}
+                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Descripción técnica
+                  </label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, description: e.target.value })
+                    }
+                    disabled={!isAdmin}
+                    rows={3}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
+                    placeholder="Detalles de la tarea..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Estado
+                    </label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, status: e.target.value })
+                      }
+                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
+                    >
+                      <option value="ToDo">Por Hacer (ToDo)</option>
+                      <option value="InProgress">En Proceso</option>
+                      <option value="Pending">En Espera (Pending)</option>
+                      <option value="Completed">Completado</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Fecha de creación
+                    </label>
+                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
+                      {new Date(selectedTask.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Miembros asignados
                   </label>
                   {isAdmin ? (
-                    <div className="bg-[#12141a] border border-[#333a47] p-2 rounded-lg max-h-24 overflow-y-auto">
-                      {users.map((u) => (
-                        <label
-                          key={u.id || u._id}
-                          className="flex items-center space-x-2 text-xs text-[#e2e8f0] cursor-pointer select-none mb-1"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={editForm.userIds?.includes(u.id || u._id) || false}
-                            onChange={(e) => {
-                              const userId = u.id || u._id;
-                              const userName = `${u.firstName} ${u.surname || ''}`;
-                              const currentUserIds = editForm.userIds || [];
-                              const currentNames = editForm.assignedToNames || [];
-                              
-                              if (e.target.checked) {
+                    <div className="bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 space-y-1.5 max-h-36 overflow-y-auto">
+                      {users.map((u) => {
+                        const userId = String(u.id || u._id);
+                        const isChecked = (editForm.userIds || []).includes(
+                          userId,
+                        );
+                        return (
+                          <label
+                            key={userId}
+                            className="flex items-center gap-2 text-[11px] text-[#e2e8f0] cursor-pointer select-none rounded px-2 py-1 hover:bg-[#20242d]"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const nextIds = isChecked
+                                  ? (editForm.userIds || []).filter(
+                                      (id) => id !== userId,
+                                    )
+                                  : [...(editForm.userIds || []), userId];
+                                const nextNames = users
+                                  .filter((item) =>
+                                    nextIds.includes(
+                                      String(item.id || item._id),
+                                    ),
+                                  )
+                                  .map((item) =>
+                                    `${item.firstName} ${item.surname || ""}`.trim(),
+                                  );
                                 setEditForm({
                                   ...editForm,
-                                  userIds: [...currentUserIds, userId],
-                                  assignedToNames: [...currentNames, userName]
+                                  userIds: nextIds,
+                                  assignedToNames: nextNames,
                                 });
-                              } else {
-                                setEditForm({
-                                  ...editForm,
-                                  userIds: currentUserIds.filter(id => id !== userId),
-                                  assignedToNames: currentNames.filter((_, i) => currentUserIds[i] !== userId)
-                                });
-                              }
-                            }}
-                            className="w-3 h-3 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
-                          />
-                          <span className="truncate">{u.firstName} {u.surname}</span>
-                        </label>
-                      ))}
+                              }}
+                              className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d]"
+                            />
+                            <span className="truncate">
+                              {u.firstName} {u.surname || ""} ({u.username})
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                      {editForm.assignedToNames?.length > 0 
-                        ? editForm.assignedToNames.join(', ') 
-                        : "Sin Asignar"}
+                      {editForm.assignedToNames?.length > 0
+                        ? editForm.assignedToNames.join(", ")
+                        : "Sin asignar"}
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Estado
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
+                    Historias de usuario
                   </label>
-                  <select
-                    value={editForm.status}
+                  <textarea
+                    value={editForm.userStories || ""}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, status: e.target.value })
+                      setEditForm({ ...editForm, userStories: e.target.value })
                     }
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                  >
-                    <option value="ToDo">Por Hacer (ToDo)</option>
-                    <option value="InProgress">En Proceso</option>
-                    <option value="Pending">En Espera (Pending)</option>
-                    <option value="Completed">Completado</option>
-                  </select>
+                    disabled={!isAdmin}
+                    rows={3}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
+                    placeholder="Como administrador quiero ..."
+                  />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Fecha Creación
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
+                    Criterios de aceptación
                   </label>
-                  <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                    {new Date(selectedTask.createdAt).toLocaleDateString()}
+                  <div className="space-y-2 bg-[#12141a] border border-[#333a47] rounded-lg p-3">
+                    {ensureAcceptanceItems(
+                      editForm.acceptanceCriteria || "",
+                    ).map((item, index) => (
+                      <div
+                        key={item.id || `${index}-criterion`}
+                        className="flex items-center gap-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={item.checked}
+                          onChange={(e) => {
+                            const currentItems = ensureAcceptanceItems(
+                              editForm.acceptanceCriteria || "",
+                            );
+                            currentItems[index].checked = e.target.checked;
+                            setEditForm({
+                              ...editForm,
+                              acceptanceCriteria:
+                                serializeAcceptanceChecklist(currentItems),
+                            });
+                          }}
+                          className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d]"
+                        />
+                        <input
+                          type="text"
+                          value={item.label}
+                          onChange={(e) => {
+                            const currentItems = ensureAcceptanceItems(
+                              editForm.acceptanceCriteria || "",
+                            );
+                            currentItems[index].label = e.target.value;
+                            setEditForm({
+                              ...editForm,
+                              acceptanceCriteria:
+                                serializeAcceptanceChecklist(currentItems),
+                            });
+                          }}
+                          placeholder="Agregar criterio"
+                          className="flex-1 bg-transparent text-xs text-white placeholder:text-[#64748b] focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentItems = ensureAcceptanceItems(
+                              editForm.acceptanceCriteria || "",
+                            );
+                            const filtered = currentItems.filter(
+                              (_, i) => i !== index,
+                            );
+                            setEditForm({
+                              ...editForm,
+                              acceptanceCriteria: serializeAcceptanceChecklist(
+                                filtered.length
+                                  ? filtered
+                                  : [
+                                      {
+                                        id: "new-criterion",
+                                        label: "",
+                                        checked: true,
+                                      },
+                                    ],
+                              ),
+                            });
+                          }}
+                          className="text-[#94a3b8] hover:text-white text-sm"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentItems = ensureAcceptanceItems(
+                          editForm.acceptanceCriteria || "",
+                        );
+                        setEditForm({
+                          ...editForm,
+                          acceptanceCriteria: serializeAcceptanceChecklist([
+                            ...currentItems,
+                            {
+                              id: `new-${Date.now()}`,
+                              label: "",
+                              checked: true,
+                            },
+                          ]),
+                        });
+                      }}
+                      className="mt-2 text-[10px] uppercase tracking-wider text-[#0aa5b5] hover:text-[#22c1d3]"
+                    >
+                      + Añadir criterio
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              {/* Single tag selection */}
-              <div>
-                <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
-                  Etiquetas Relacionadas
-                </label>
-                {isAdmin ? (
-                  <div className="grid grid-cols-3 gap-2 bg-[#12141a] border border-[#333a47] p-3 rounded-lg">
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
+                    Etiquetas
+                  </label>
+                  <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => {
                       const isChecked = editForm.tagIds?.includes(tag.id);
                       return (
-                        <label
+                        <button
+                          type="button"
                           key={tag.id}
-                          className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none"
-                        >
-                          <input
-                            type="radio"
-                            name="edit-task-tag"
-                            checked={isChecked}
-                            onChange={() =>
-                              toggleTagSelection(editForm, setEditForm, tag.id)
-                            }
-                            className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
-                          />
-                          <span
-                            style={{ color: tag.color }}
-                            className="font-semibold"
-                          >
-                            {tag.name}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5 bg-[#12141a] border border-[#333a47] p-3 rounded-lg">
-                    {selectedTask.tags && selectedTask.tags.length > 0 ? (
-                      selectedTask.tags.map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border"
+                          onClick={() =>
+                            isAdmin &&
+                            toggleTagSelection(editForm, setEditForm, tag.id)
+                          }
+                          className={`px-2.5 py-1.5 rounded-full text-[10px] font-bold border transition-all ${isChecked ? "border-transparent" : "border-[#333a47]"} ${isAdmin ? "cursor-pointer" : "cursor-default"}`}
                           style={{
-                            backgroundColor: `${tag.color}15`,
+                            backgroundColor: isChecked
+                              ? `${tag.color}25`
+                              : "#2a2f3a",
                             color: tag.color,
-                            borderColor: `${tag.color}30`,
+                            borderColor: isChecked
+                              ? `${tag.color}60`
+                              : "#333a47",
                           }}
                         >
                           {tag.name}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-[#94a3b8]">
-                        Sin etiquetas
-                      </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-4 border-t border-[#333a47] mt-4">
+                  <div>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(editForm.id)}
+                        className="text-[#c95d5d] hover:bg-red-500/10 border border-transparent hover:border-red-500/20 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1"
+                      >
+                        <Trash2 size={14} />
+                        <span>Eliminar</span>
+                      </button>
                     )}
                   </div>
-                )}
-              </div>
 
-              {/* Action buttons */}
-              <div className="flex justify-between items-center pt-4 border-t border-[#333a47] mt-4">
-                <div>
-                  {isAdmin && (
+                  <div className="flex space-x-2">
                     <button
                       type="button"
-                      onClick={() => handleDelete(editForm.id)}
-                      className="text-[#c95d5d] hover:bg-red-500/10 border border-transparent hover:border-red-500/20 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1"
+                      onClick={() => {
+                        setSelectedTask(null);
+                        setEditForm(null);
+                      }}
+                      className="bg-[#2a2f3a] hover:bg-[#333a47] text-[#94a3b8] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#333a47]"
                     >
-                      <Trash2 size={14} />
-                      <span>Eliminar</span>
+                      Cancelar
                     </button>
-                  )}
+                    <button
+                      type="submit"
+                      className="bg-[#669a71] hover:brightness-110 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all"
+                    >
+                      Guardar
+                    </button>
+                  </div>
                 </div>
+              </form>
 
-                <div className="flex space-x-2">
+              {showTaskDetails && (
+                <aside className="border-l border-[#333a47] bg-[#171d27] p-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-[#333a47]">
+                    <h4 className="text-sm font-bold text-white">
+                      Comentarios y Actividad
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowTaskDetails(false)}
+                      className="text-[10px] uppercase tracking-wide text-[#94a3b8] hover:text-white"
+                    >
+                      Ocultar detalles
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {taskActivity.length === 0 ? (
+                      <div className="rounded-xl border border-[#333a47] bg-[#20242d] p-3 text-xs text-[#94a3b8]">
+                        Aún no hay actividad para esta tarea.
+                      </div>
+                    ) : (
+                      taskActivity.map((log) => (
+                        <div
+                          key={log.id}
+                          className="rounded-xl border border-[#333a47] bg-[#20242d] p-3"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-6 h-6 rounded-full bg-[#0aa5b5]/15 text-[#0aa5b5] flex items-center justify-center text-[10px] font-bold">
+                              {log.userName?.charAt(0)?.toUpperCase() || "E"}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-white">
+                                {log.userName}
+                              </p>
+                              <p className="text-[10px] text-[#94a3b8]">
+                                {new Date(log.createdAt).toLocaleDateString()} ·{" "}
+                                {new Date(log.createdAt).toLocaleTimeString(
+                                  [],
+                                  { hour: "2-digit", minute: "2-digit" },
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-xs text-[#dfe7f5] leading-relaxed">
+                            {log.description}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </aside>
+              )}
+
+              {!showTaskDetails && (
+                <div className="border-l border-[#333a47] bg-[#171d27] p-4 flex items-center justify-center">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedTask(null);
-                      setEditForm(null);
-                    }}
-                    className="bg-[#2a2f3a] hover:bg-[#333a47] text-[#94a3b8] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#333a47]"
+                    onClick={() => setShowTaskDetails(true)}
+                    className="text-[10px] uppercase tracking-wide text-[#94a3b5] hover:text-white border border-[#333a47] rounded-lg px-3 py-2 bg-[#20242d]"
                   >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-[#669a71] hover:brightness-110 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all"
-                  >
-                    Guardar
+                    Mostrar detalles
                   </button>
                 </div>
-              </div>
-            </form>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1158,6 +1526,33 @@ export const DashboardAdmin = () => {
                 />
               </div>
 
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Tema
+                  </label>
+                  <input
+                    type="text"
+                    value={createForm.theme}
+                    onChange={(e) => setFormValue("theme", e.target.value)}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
+                    placeholder="Sistema de reclutamiento"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Épica
+                  </label>
+                  <input
+                    type="text"
+                    value={createForm.epic}
+                    onChange={(e) => setFormValue("epic", e.target.value)}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
+                    placeholder="Gestión de usuarios"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
                   Descripción Técnica
@@ -1165,7 +1560,7 @@ export const DashboardAdmin = () => {
                 <textarea
                   value={createForm.description}
                   onChange={(e) => setFormValue("description", e.target.value)}
-                  rows={4}
+                  rows={3}
                   className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] resize-none"
                   placeholder="Detalles sobre el trabajo a realizar..."
                 />
@@ -1173,50 +1568,157 @@ export const DashboardAdmin = () => {
 
               <div>
                 <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                  Historias de usuario
+                </label>
+                <textarea
+                  value={createForm.userStories || ""}
+                  onChange={(e) => setFormValue("userStories", e.target.value)}
+                  rows={3}
+                  className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] resize-none"
+                  placeholder="Como administrador quiero ..."
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                  Criterios de aceptación
+                </label>
+                <div className="space-y-2 bg-[#12141a] border border-[#333a47] rounded-lg p-3 max-h-[170px] overflow-y-auto">
+                  {ensureAcceptanceItems(
+                    createForm.acceptanceCriteria || "",
+                  ).map((item, index) => (
+                    <div
+                      key={item.id || `${index}-criterion`}
+                      className="flex items-center gap-2 min-w-0"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        onChange={(e) => {
+                          const currentItems = ensureAcceptanceItems(
+                            createForm.acceptanceCriteria || "",
+                          );
+                          currentItems[index].checked = e.target.checked;
+                          setCreateForm({
+                            ...createForm,
+                            acceptanceCriteria:
+                              serializeAcceptanceChecklist(currentItems),
+                          });
+                        }}
+                        className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d] shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={item.label}
+                        onChange={(e) => {
+                          const currentItems = ensureAcceptanceItems(
+                            createForm.acceptanceCriteria || "",
+                          );
+                          currentItems[index].label = e.target.value;
+                          setCreateForm({
+                            ...createForm,
+                            acceptanceCriteria:
+                              serializeAcceptanceChecklist(currentItems),
+                          });
+                        }}
+                        placeholder="Agregar criterio"
+                        className="flex-1 min-w-0 bg-transparent text-xs text-white placeholder:text-[#64748b] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentItems = ensureAcceptanceItems(
+                            createForm.acceptanceCriteria || "",
+                          );
+                          const filtered = currentItems.filter(
+                            (_, i) => i !== index,
+                          );
+                          setCreateForm({
+                            ...createForm,
+                            acceptanceCriteria: serializeAcceptanceChecklist(
+                              filtered.length
+                                ? filtered
+                                : [
+                                    {
+                                      id: `new-${Date.now()}`,
+                                      label: "",
+                                      checked: true,
+                                    },
+                                  ],
+                            ),
+                          });
+                        }}
+                        className="text-[#94a3b8] hover:text-white text-sm shrink-0"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentItems = ensureAcceptanceItems(
+                        createForm.acceptanceCriteria || "",
+                      );
+                      setCreateForm({
+                        ...createForm,
+                        acceptanceCriteria: serializeAcceptanceChecklist([
+                          ...currentItems,
+                          { id: `new-${Date.now()}`, label: "", checked: true },
+                        ]),
+                      });
+                    }}
+                    className="mt-2 text-[10px] uppercase tracking-wider text-[#0aa5b5] hover:text-[#22c1d3]"
+                  >
+                    + Añadir criterio
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
                   Estado Inicial
                 </label>
                 <select
-                  value={createForm.status}
-                  onChange={(e) => setFormValue("status", e.target.value)}
-                  className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
+                  value="ToDo"
+                  disabled
+                  className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] opacity-100"
                 >
                   <option value="ToDo">Por Hacer (ToDo)</option>
-                  <option value="InProgress">En Proceso</option>
-                  <option value="Pending">En Espera (Pending)</option>
-                  <option value="Completed">Completado</option>
                 </select>
               </div>
 
               {isAdmin && (
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Asignar a (múltiples usuarios)
+                    Asignar a
                   </label>
-                  <div className="bg-[#12141a] border border-[#333a47] p-3 rounded-lg max-h-32 overflow-y-auto">
-                    {users.map((u) => (
-                      <label
-                        key={u.id || u._id}
-                        className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none mb-2"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={createForm.userIds.includes(u.id || u._id)}
-                          onChange={(e) => {
-                            const userId = u.id || u._id;
-                            const userName = `${u.firstName} ${u.surname || ''}`;
-                            if (e.target.checked) {
-                              setFormValue("userIds", [...createForm.userIds, userId]);
-                              setFormValue("assignedToNames", [...createForm.assignedToNames, userName]);
-                            } else {
-                              setFormValue("userIds", createForm.userIds.filter(id => id !== userId));
-                              setFormValue("assignedToNames", createForm.assignedToNames.filter((_, i) => createForm.userIds[i] !== userId));
+                  <div className="bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 space-y-1.5 max-h-36 overflow-y-auto">
+                    {users.map((u) => {
+                      const userId = String(u.id || u._id);
+                      const isSelected = createForm.userIds.includes(userId);
+                      return (
+                        <label
+                          key={userId}
+                          className="flex items-center gap-2 text-[11px] text-[#e2e8f0] cursor-pointer select-none rounded px-2 py-1 hover:bg-[#20242d]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() =>
+                              toggleUserSelection(
+                                userId,
+                                `${u.firstName} ${u.surname || ""}`.trim(),
+                              )
                             }
-                          }}
-                          className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
-                        />
-                        <span>{u.firstName} {u.surname} ({u.username})</span>
-                      </label>
-                    ))}
+                            className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d]"
+                          />
+                          <span className="truncate">
+                            {u.firstName} {u.surname || ""} ({u.username})
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1297,7 +1799,8 @@ export const DashboardAdmin = () => {
                 <span>Copias de Seguridad y Bitácora</span>
               </h3>
               <p className="text-xs text-[#94a3b8] mt-2">
-                Selecciona la opción de copia de seguridad o reporte de auditoría que deseas descargar de la base de datos PostgreSQL.
+                Selecciona la opción de copia de seguridad o reporte de
+                auditoría que deseas descargar de la base de datos PostgreSQL.
               </p>
             </div>
 
@@ -1309,14 +1812,24 @@ export const DashboardAdmin = () => {
                     <Database size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Base de Datos Completa (SQL)</h4>
+                    <h4 className="text-sm font-semibold text-white">
+                      Base de Datos Completa (SQL)
+                    </h4>
                     <p className="text-xs text-[#94a3b8] mt-0.5">
-                      Contiene la estructura completa (esquemas, tablas) y los datos registrados (tareas, bitácora).
+                      Contiene la estructura completa (esquemas, tablas) y los
+                      datos registrados (tareas, bitácora).
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDownload('http://localhost:5214/api/backups/download', `backup_${new Date().toISOString().slice(0,10)}.sql`, 'DOWNLOAD_BACKUP', 'Descargó copia de seguridad de la base de datos (SQL)')}
+                  onClick={() =>
+                    handleDownload(
+                      "http://localhost:5214/api/backups/download",
+                      `backup_${new Date().toISOString().slice(0, 10)}.sql`,
+                      "DOWNLOAD_BACKUP",
+                      "Descargó copia de seguridad de la base de datos (SQL)",
+                    )
+                  }
                   className="mt-3 w-full py-2 bg-[#0aa5b5] hover:bg-[#22c1d3] text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-2"
                 >
                   <Download size={14} />
@@ -1331,14 +1844,24 @@ export const DashboardAdmin = () => {
                     <FileText size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Bitácora de Auditoría (CSV)</h4>
+                    <h4 className="text-sm font-semibold text-white">
+                      Bitácora de Auditoría (CSV)
+                    </h4>
                     <p className="text-xs text-[#94a3b8] mt-0.5">
-                      Exporta el historial de acciones de los usuarios en formato de hoja de cálculo.
+                      Exporta el historial de acciones de los usuarios en
+                      formato de hoja de cálculo.
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDownload('http://localhost:5214/api/auditlogs/export/csv', `audit_logs_${new Date().toISOString().slice(0,10)}.csv`, 'EXPORT_BITACORA_CSV', 'Exportó la bitácora de actividades en formato CSV')}
+                  onClick={() =>
+                    handleDownload(
+                      "http://localhost:5214/api/auditlogs/export/csv",
+                      `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`,
+                      "EXPORT_BITACORA_CSV",
+                      "Exportó la bitácora de actividades en formato CSV",
+                    )
+                  }
                   className="mt-3 w-full py-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-2"
                 >
                   <Download size={14} />
@@ -1353,14 +1876,24 @@ export const DashboardAdmin = () => {
                     <FileText size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-white">Bitácora de Auditoría (JSON)</h4>
+                    <h4 className="text-sm font-semibold text-white">
+                      Bitácora de Auditoría (JSON)
+                    </h4>
                     <p className="text-xs text-[#94a3b8] mt-0.5">
-                      Exporta el historial de auditoría del sistema estructurado en formato JSON.
+                      Exporta el historial de auditoría del sistema estructurado
+                      en formato JSON.
                     </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => handleDownload('http://localhost:5214/api/auditlogs/export/json', `audit_logs_${new Date().toISOString().slice(0,10)}.json`, 'EXPORT_BITACORA_JSON', 'Exportó la bitácora de actividades en formato JSON')}
+                  onClick={() =>
+                    handleDownload(
+                      "http://localhost:5214/api/auditlogs/export/json",
+                      `audit_logs_${new Date().toISOString().slice(0, 10)}.json`,
+                      "EXPORT_BITACORA_JSON",
+                      "Exportó la bitácora de actividades en formato JSON",
+                    )
+                  }
                   className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-2"
                 >
                   <Download size={14} />
@@ -1376,9 +1909,13 @@ export const DashboardAdmin = () => {
       {taskToDeleteId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#20242d]/90 border border-[#333a47] rounded-2xl p-6 max-w-sm w-full shadow-2xl relative animate-scaleIn">
-            <h3 className="text-lg font-bold text-white mb-2">Eliminar Tarea</h3>
+            <h3 className="text-lg font-bold text-white mb-2">
+              Eliminar Tarea
+            </h3>
             <p className="text-sm text-[#94a3b8] mb-6">
-              ¿Deseas eliminar esta tarea? Se marcará como deshabilitada en la base de datos.
+              ¿Deseas eliminar esta tarea? No se borrará físicamente de la base
+              de datos; se marcará como deshabilitada y quedará oculta del
+              tablero.
             </p>
             <div className="flex space-x-3">
               <button
@@ -1391,7 +1928,7 @@ export const DashboardAdmin = () => {
               <button
                 type="button"
                 onClick={() => {
-                  const task = tasks.find(t => t.id === taskToDeleteId);
+                  const task = tasks.find((t) => t.id === taskToDeleteId);
                   if (task) {
                     updateTask(taskToDeleteId, { ...task, isDisabled: true });
                     setSelectedTask(null);
@@ -1409,9 +1946,4 @@ export const DashboardAdmin = () => {
       )}
     </div>
   );
-
-  // Helper local para setear valores
-  function setFormValue(key, value) {
-    setCreateForm((prev) => ({ ...prev, [key]: value }));
-  }
 };

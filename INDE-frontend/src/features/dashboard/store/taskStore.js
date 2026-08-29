@@ -60,10 +60,24 @@ export const useTaskStore = create((set, get) => ({
   },
 
   addTask: async (taskData) => {
-    const { title, description, status, tagIds, userIds, assignedToNames } = taskData;
-    const { user, users } = useAuthStore.getState();
-    const targetUserIds = userIds && userIds.length > 0 ? userIds : (user?.id ? [user.id] : []);
-    const targetAssignedToNames = assignedToNames && assignedToNames.length > 0 ? assignedToNames : (user?.name || user?.firstName ? [user?.name || user?.firstName] : []);
+    const {
+      title,
+      description,
+      acceptanceCriteria,
+      status,
+      tagIds,
+      userIds,
+      assignedToNames,
+    } = taskData;
+    const { user } = useAuthStore.getState();
+    const targetUserIds =
+      userIds && userIds.length > 0 ? userIds : user?.id ? [user.id] : [];
+    const targetAssignedToNames =
+      assignedToNames && assignedToNames.length > 0
+        ? assignedToNames
+        : user?.name || user?.firstName
+          ? [user?.name || user?.firstName]
+          : [];
 
     // Generar objeto local temporal
     const localId = crypto.randomUUID
@@ -74,13 +88,14 @@ export const useTaskStore = create((set, get) => ({
     const assignedUsers = targetUserIds.map((uid, index) => ({
       userId: uid,
       assignedToName: targetAssignedToNames[index] || "",
-      assignedAt: new Date().toISOString()
+      assignedAt: new Date().toISOString(),
     }));
 
     const newTaskLocal = {
       id: localId,
       title,
       description,
+      acceptanceCriteria: acceptanceCriteria || "",
       status: status || "ToDo",
       assignedUsers,
       createdAt: new Date().toISOString(),
@@ -97,6 +112,7 @@ export const useTaskStore = create((set, get) => ({
         const response = await axios.post(`${API_URL}/tasks`, {
           title,
           description,
+          acceptanceCriteria: acceptanceCriteria || "",
           status: status || "ToDo",
           userIds: targetUserIds,
           assignedToNames: targetAssignedToNames,
@@ -123,12 +139,13 @@ export const useTaskStore = create((set, get) => ({
             await axios.post(`${API_URL}/auditlogs`, {
               userId: user.id || user._id,
               userName: user.name || user.username,
-              userRole: user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+              userRole:
+                user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
               action: "CREATE_TASK",
               entityType: "Task",
               entityId: createdTask.id,
               description: `Creó la tarea: "${createdTask.title}" con estado "${createdTask.status}".`,
-              ipAddress: "127.0.0.1"
+              ipAddress: "127.0.0.1",
             });
           } catch (logErr) {
             console.error("Error logging task creation:", logErr);
@@ -141,7 +158,16 @@ export const useTaskStore = create((set, get) => ({
   },
 
   updateTask: async (id, updatedFields) => {
-    const { title, description, status, tagIds, userIds, assignedToNames, isDisabled } = updatedFields;
+    const {
+      title,
+      description,
+      acceptanceCriteria,
+      status,
+      tagIds,
+      userIds,
+      assignedToNames,
+      isDisabled,
+    } = updatedFields;
     const { user, users } = useAuthStore.getState();
     const selectedTagIds = tagIds?.slice(0, 1) || [];
     const previousTask = get().tasks.find((task) => task.id === id);
@@ -154,18 +180,27 @@ export const useTaskStore = create((set, get) => ({
           const associatedTags = state.tags.filter((tg) =>
             selectedTagIds.includes(tg.id),
           );
-          
-          const assignedUsers = (userIds && userIds.length > 0 ? userIds : (previousTask?.assignedUsers?.map(au => au.userId) || []))
-            .map((uid, index) => ({
-              userId: uid,
-              assignedToName: (assignedToNames && assignedToNames.length > 0 ? assignedToNames : previousTask?.assignedUsers?.map(au => au.assignedToName) || [])[index] || "",
-              assignedAt: new Date().toISOString()
-            }));
+
+          const assignedUsers = (
+            userIds && userIds.length > 0
+              ? userIds
+              : previousTask?.assignedUsers?.map((au) => au.userId) || []
+          ).map((uid, index) => ({
+            userId: uid,
+            assignedToName:
+              (assignedToNames && assignedToNames.length > 0
+                ? assignedToNames
+                : previousTask?.assignedUsers?.map((au) => au.assignedToName) ||
+                  [])[index] || "",
+            assignedAt: new Date().toISOString(),
+          }));
 
           return {
             ...t,
             title,
             description,
+            acceptanceCriteria:
+              acceptanceCriteria ?? t.acceptanceCriteria ?? "",
             status,
             assignedUsers,
             tags: associatedTags,
@@ -182,10 +217,19 @@ export const useTaskStore = create((set, get) => ({
         await axios.put(`${API_URL}/tasks/${id}`, {
           title,
           description,
+          acceptanceCriteria:
+            acceptanceCriteria ?? previousTask?.acceptanceCriteria ?? "",
           status,
-          userIds: userIds || previousTask?.assignedUsers?.map(au => au.userId) || [],
-          assignedToNames: assignedToNames || previousTask?.assignedUsers?.map(au => au.assignedToName) || [],
-          isDisabled: isDisabled !== undefined ? isDisabled : previousTask?.isDisabled,
+          userIds:
+            userIds ||
+            previousTask?.assignedUsers?.map((au) => au.userId) ||
+            [],
+          assignedToNames:
+            assignedToNames ||
+            previousTask?.assignedUsers?.map((au) => au.assignedToName) ||
+            [],
+          isDisabled:
+            isDisabled !== undefined ? isDisabled : previousTask?.isDisabled,
         });
 
         // Identificar cuáles etiquetas agregar y cuáles quitar
@@ -213,12 +257,13 @@ export const useTaskStore = create((set, get) => ({
             await axios.post(`${API_URL}/auditlogs`, {
               userId: user.id || user._id,
               userName: user.name || user.username,
-              userRole: user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+              userRole:
+                user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
               action: "UPDATE_TASK",
               entityType: "Task",
               entityId: id,
               description: `Actualizó la tarea: "${title}" (Estado: ${status}).`,
-              ipAddress: "127.0.0.1"
+              ipAddress: "127.0.0.1",
             });
           } catch (logErr) {
             console.error("Error logging task update:", logErr);
@@ -250,12 +295,13 @@ export const useTaskStore = create((set, get) => ({
             await axios.post(`${API_URL}/auditlogs`, {
               userId: user.id || user._id,
               userName: user.name || user.username,
-              userRole: user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
+              userRole:
+                user.role === "ADMIN_ROLE" ? "Administrador" : "Técnico",
               action: "DELETE_TASK",
               entityType: "Task",
               entityId: id,
               description: `Eliminó la tarea: "${taskTitle}".`,
-              ipAddress: "127.0.0.1"
+              ipAddress: "127.0.0.1",
             });
           } catch (logErr) {
             console.error("Error logging task deletion:", logErr);

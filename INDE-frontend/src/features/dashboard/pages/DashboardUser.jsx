@@ -27,6 +27,7 @@ export const DashboardUser = () => {
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, tasks, users
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Para mobile
   const [selectedTask, setSelectedTask] = useState(null); // Para modal de detalles
+  const [taskActivity, setTaskActivity] = useState([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false); // Sidebar de creación
   const [taskToDeleteId, setTaskToDeleteId] = useState(null); // ID de la tarea a eliminar
 
@@ -48,6 +49,28 @@ export const DashboardUser = () => {
       fetchUsers();
     }
   }, []);
+
+  useEffect(() => {
+    if (!selectedTask) {
+      setTaskActivity([]);
+      return;
+    }
+
+    const loadTaskActivity = async () => {
+      try {
+        const response = await axios.get("http://localhost:5214/api/auditlogs");
+        const filtered = response.data.filter(
+          (log) => String(log.entityId) === String(selectedTask.id),
+        );
+        setTaskActivity(filtered.slice(0, 8));
+      } catch (error) {
+        console.error("Error cargando actividad de tarea:", error);
+        setTaskActivity([]);
+      }
+    };
+
+    loadTaskActivity();
+  }, [selectedTask]);
 
   const handleLogout = () => {
     logout();
@@ -132,6 +155,13 @@ export const DashboardUser = () => {
         return status;
     }
   };
+
+  const parseChecklist = (value = "") =>
+    value
+      .split(/\n|•|;|\-/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 6);
 
   return (
     <div className="inde-dashboard-layout bg-[#12141a] min-h-screen text-[#e2e8f0]">
@@ -554,8 +584,9 @@ export const DashboardUser = () => {
                 description: task.description,
                 status: task.status,
                 tagIds: task.tags?.map((tag) => tag.id) || [],
-                userIds: task.assignedUsers?.map(au => au.userId) || [],
-                assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                userIds: task.assignedUsers?.map((au) => au.userId) || [],
+                assignedToNames:
+                  task.assignedUsers?.map((au) => au.assignedToName) || [],
                 isDisabled: task.isDisabled || false,
               });
             }}
@@ -596,8 +627,12 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -659,8 +694,12 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -722,8 +761,12 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -785,8 +828,12 @@ export const DashboardUser = () => {
                             description: task.description,
                             status: task.status,
                             tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds: task.assignedUsers?.map(au => au.userId) || [],
-                            assignedToNames: task.assignedUsers?.map(au => au.assignedToName) || [],
+                            userIds:
+                              task.assignedUsers?.map((au) => au.userId) || [],
+                            assignedToNames:
+                              task.assignedUsers?.map(
+                                (au) => au.assignedToName,
+                              ) || [],
                             isDisabled: task.isDisabled || false,
                           });
                         }}
@@ -828,14 +875,20 @@ export const DashboardUser = () => {
       {/* DETAILED VIEW MODAL */}
       {selectedTask && editForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-[#20242d] rounded-2xl border border-[#333a47] w-full max-w-[500px] overflow-hidden shadow-2xl animate-fadeInScale">
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-[#333a47] bg-[#2a2f3a]">
-              <div className="flex items-center space-x-2">
-                <img src={LogoInde} alt="Logo" className="h-6" />
-                <h3 className="font-bold text-white text-sm">
-                  Detalles de Tarea
-                </h3>
+          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[1000px] overflow-hidden shadow-2xl animate-fadeInScale">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#333a47] bg-[#2a2f3a]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#0aa5b5]/15 flex items-center justify-center text-[#0aa5b5]">
+                  <CheckSquare size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-[#94a3b8]">
+                    Tarea
+                  </p>
+                  <h3 className="font-bold text-white text-sm">
+                    {selectedTask.title}
+                  </h3>
+                </div>
               </div>
               <button
                 onClick={() => {
@@ -848,211 +901,292 @@ export const DashboardUser = () => {
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                  Título
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.title}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, title: e.target.value })
-                  }
-                  disabled={!isAdmin}
-                  className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
-                />
-              </div>
+            <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_0.9fr]">
+              <form onSubmit={handleEditSubmit} className="p-6 space-y-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
+                    {getStatusLabel(editForm.status)}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
+                    {selectedTask.tags?.length || 0} etiquetas
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
+                    {selectedTask.assignedUsers?.length ||
+                      editForm.assignedToNames?.length ||
+                      0}{" "}
+                    miembros
+                  </span>
+                </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                  Descripción Técnica
-                </label>
-                <textarea
-                  value={editForm.description}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, description: e.target.value })
-                  }
-                  disabled={!isAdmin}
-                  rows={4}
-                  className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
-                  placeholder="Detalles de la tarea..."
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Asignado a (múltiples usuarios)
+                    Título
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.title}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, title: e.target.value })
+                    }
+                    disabled={!isAdmin}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Descripción técnica
+                  </label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, description: e.target.value })
+                    }
+                    disabled={!isAdmin}
+                    rows={4}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
+                    placeholder="Detalles de la tarea..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Estado
+                    </label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, status: e.target.value })
+                      }
+                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
+                    >
+                      <option value="ToDo">Por Hacer (ToDo)</option>
+                      <option value="InProgress">En Proceso</option>
+                      <option value="Pending">En Espera (Pending)</option>
+                      <option value="Completed">Completado</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Fecha de creación
+                    </label>
+                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
+                      {new Date(selectedTask.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Miembros asignados
                   </label>
                   {isAdmin ? (
-                    <div className="bg-[#12141a] border border-[#333a47] p-2 rounded-lg max-h-24 overflow-y-auto">
-                      {users.map((u) => (
-                        <label
-                          key={u.id || u._id}
-                          className="flex items-center space-x-2 text-xs text-[#e2e8f0] cursor-pointer select-none mb-1"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={editForm.userIds?.includes(u.id || u._id) || false}
-                            onChange={(e) => {
-                              const userId = u.id || u._id;
-                              const userName = `${u.firstName} ${u.surname || ''}`;
-                              const currentUserIds = editForm.userIds || [];
-                              const currentNames = editForm.assignedToNames || [];
-                              
-                              if (e.target.checked) {
-                                setEditForm({
-                                  ...editForm,
-                                  userIds: [...currentUserIds, userId],
-                                  assignedToNames: [...currentNames, userName]
-                                });
-                              } else {
-                                setEditForm({
-                                  ...editForm,
-                                  userIds: currentUserIds.filter(id => id !== userId),
-                                  assignedToNames: currentNames.filter((_, i) => currentUserIds[i] !== userId)
-                                });
-                              }
-                            }}
-                            className="w-3 h-3 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
-                          />
-                          <span className="truncate">{u.firstName} {u.surname}</span>
-                        </label>
-                      ))}
+                    <div className="bg-[#12141a] border border-[#333a47] rounded-lg p-2.5">
+                      <select
+                        multiple
+                        value={editForm.userIds || []}
+                        onChange={(e) => {
+                          const selectedIds = Array.from(
+                            e.target.selectedOptions,
+                            (option) => option.value,
+                          );
+                          const selectedNames = users
+                            .filter((u) => selectedIds.includes(u.id || u._id))
+                            .map((u) =>
+                              `${u.firstName} ${u.surname || ""}`.trim(),
+                            );
+                          setEditForm({
+                            ...editForm,
+                            userIds: selectedIds,
+                            assignedToNames: selectedNames,
+                          });
+                        }}
+                        className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] min-h-[88px]"
+                      >
+                        {users.map((u) => (
+                          <option key={u.id || u._id} value={u.id || u._id}>
+                            {u.firstName} {u.surname} ({u.username})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   ) : (
                     <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                      {editForm.assignedToNames?.length > 0 
-                        ? editForm.assignedToNames.join(', ') 
-                        : "Sin Asignar"}
+                      {editForm.assignedToNames?.length > 0
+                        ? editForm.assignedToNames.join(", ")
+                        : "Sin asignar"}
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Estado
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
+                    Criterios de aceptación
                   </label>
-                  <select
-                    value={editForm.status}
+                  <textarea
+                    value={editForm.acceptanceCriteria || ""}
                     onChange={(e) =>
-                      setEditForm({ ...editForm, status: e.target.value })
+                      setEditForm({
+                        ...editForm,
+                        acceptanceCriteria: e.target.value,
+                      })
                     }
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                  >
-                    <option value="ToDo">Por Hacer (ToDo)</option>
-                    <option value="InProgress">En Proceso</option>
-                    <option value="Pending">En Espera (Pending)</option>
-                    <option value="Completed">Completado</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Fecha Creación
-                  </label>
-                  <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                    {new Date(selectedTask.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Single tag selection */}
-              <div>
-                <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
-                  Etiquetas Relacionadas
-                </label>
-                {isAdmin ? (
-                  <div className="grid grid-cols-3 gap-2 bg-[#12141a] border border-[#333a47] p-3 rounded-lg">
-                    {tags.map((tag) => {
-                      const isChecked = editForm.tagIds?.includes(tag.id);
-                      return (
-                        <label
-                          key={tag.id}
-                          className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none"
-                        >
-                          <input
-                            type="radio"
-                            name="edit-task-tag"
-                            checked={isChecked}
-                            onChange={() =>
-                              toggleTagSelection(editForm, setEditForm, tag.id)
-                            }
-                            className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
-                          />
-                          <span
-                            style={{ color: tag.color }}
-                            className="font-semibold"
+                    disabled={!isAdmin}
+                    rows={4}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
+                    placeholder="Ejemplo:
+• Validar contraseña con mínimo 6 caracteres
+• Guardar la configuración del usuario
+• Mostrar mensaje de éxito"
+                  />
+                  <div className="mt-3 space-y-2 bg-[#12141a] border border-[#333a47] rounded-lg p-3">
+                    {parseChecklist(editForm.acceptanceCriteria || "")
+                      .length ? (
+                      parseChecklist(editForm.acceptanceCriteria || "").map(
+                        (item, index) => (
+                          <label
+                            key={`${item}-${index}`}
+                            className="flex items-center gap-2 text-xs text-[#e2e8f0]"
                           >
-                            {tag.name}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5 bg-[#12141a] border border-[#333a47] p-3 rounded-lg">
-                    {selectedTask.tags && selectedTask.tags.length > 0 ? (
-                      selectedTask.tags.map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border"
-                          style={{
-                            backgroundColor: `${tag.color}15`,
-                            color: tag.color,
-                            borderColor: `${tag.color}30`,
-                          }}
-                        >
-                          {tag.name}
-                        </span>
-                      ))
+                            <input
+                              type="checkbox"
+                              checked
+                              readOnly
+                              className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d]"
+                            />
+                            <span>{item}</span>
+                          </label>
+                        ),
+                      )
                     ) : (
                       <span className="text-xs text-[#94a3b8]">
-                        Sin etiquetas
+                        Sin criterios
                       </span>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Action buttons */}
-              <div className="flex justify-between items-center pt-4 border-t border-[#333a47] mt-4">
                 <div>
-                  {isAdmin && (
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
+                    Etiquetas
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => {
+                      const isChecked = editForm.tagIds?.includes(tag.id);
+                      return (
+                        <button
+                          type="button"
+                          key={tag.id}
+                          onClick={() =>
+                            isAdmin &&
+                            toggleTagSelection(editForm, setEditForm, tag.id)
+                          }
+                          className={`px-2.5 py-1.5 rounded-full text-[10px] font-bold border transition-all ${isChecked ? "border-transparent" : "border-[#333a47]"} ${isAdmin ? "cursor-pointer" : "cursor-default"}`}
+                          style={{
+                            backgroundColor: isChecked
+                              ? `${tag.color}25`
+                              : "#2a2f3a",
+                            color: tag.color,
+                            borderColor: isChecked
+                              ? `${tag.color}60`
+                              : "#333a47",
+                          }}
+                        >
+                          {tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-4 border-t border-[#333a47] mt-4">
+                  <div>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(editForm.id)}
+                        className="text-[#c95d5d] hover:bg-red-500/10 border border-transparent hover:border-red-500/20 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1"
+                      >
+                        <Trash2 size={14} />
+                        <span>Eliminar</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex space-x-2">
                     <button
                       type="button"
-                      onClick={() => handleDelete(editForm.id)}
-                      className="text-[#c95d5d] hover:bg-red-500/10 border border-transparent hover:border-red-500/20 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-1"
+                      onClick={() => {
+                        setSelectedTask(null);
+                        setEditForm(null);
+                      }}
+                      className="bg-[#2a2f3a] hover:bg-[#333a47] text-[#94a3b8] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#333a47]"
                     >
-                      <Trash2 size={14} />
-                      <span>Eliminar</span>
+                      Cancelar
                     </button>
-                  )}
+                    <button
+                      type="submit"
+                      className="bg-[#669a71] hover:brightness-110 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all"
+                    >
+                      Guardar
+                    </button>
+                  </div>
                 </div>
+              </form>
 
-                <div className="flex space-x-2">
+              <aside className="border-l border-[#333a47] bg-[#171d27] p-5">
+                <div className="flex items-center justify-between pb-3 border-b border-[#333a47]">
+                  <h4 className="text-sm font-bold text-white">
+                    Comentarios y Actividad
+                  </h4>
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedTask(null);
-                      setEditForm(null);
-                    }}
-                    className="bg-[#2a2f3a] hover:bg-[#333a47] text-[#94a3b8] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#333a47]"
+                    className="text-[10px] uppercase tracking-wide text-[#94a3b8]"
                   >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-[#669a71] hover:brightness-110 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all"
-                  >
-                    Guardar
+                    Ocultar detalles
                   </button>
                 </div>
-              </div>
-            </form>
+
+                <div className="mt-4 space-y-3">
+                  {taskActivity.length === 0 ? (
+                    <div className="rounded-xl border border-[#333a47] bg-[#20242d] p-3 text-xs text-[#94a3b8]">
+                      Aún no hay actividad para esta tarea.
+                    </div>
+                  ) : (
+                    taskActivity.map((log) => (
+                      <div
+                        key={log.id}
+                        className="rounded-xl border border-[#333a47] bg-[#20242d] p-3"
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-6 h-6 rounded-full bg-[#0aa5b5]/15 text-[#0aa5b5] flex items-center justify-center text-[10px] font-bold">
+                            {log.userName?.charAt(0)?.toUpperCase() || "E"}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-white">
+                              {log.userName}
+                            </p>
+                            <p className="text-[10px] text-[#94a3b8]">
+                              {new Date(log.createdAt).toLocaleDateString()} ·{" "}
+                              {new Date(log.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-[#dfe7f5] leading-relaxed">
+                          {log.description}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </aside>
+            </div>
           </div>
         </div>
       )}
@@ -1141,18 +1275,36 @@ export const DashboardUser = () => {
                           checked={createForm.userIds.includes(u.id || u._id)}
                           onChange={(e) => {
                             const userId = u.id || u._id;
-                            const userName = `${u.firstName} ${u.surname || ''}`;
+                            const userName = `${u.firstName} ${u.surname || ""}`;
                             if (e.target.checked) {
-                              setFormValue("userIds", [...createForm.userIds, userId]);
-                              setFormValue("assignedToNames", [...createForm.assignedToNames, userName]);
+                              setFormValue("userIds", [
+                                ...createForm.userIds,
+                                userId,
+                              ]);
+                              setFormValue("assignedToNames", [
+                                ...createForm.assignedToNames,
+                                userName,
+                              ]);
                             } else {
-                              setFormValue("userIds", createForm.userIds.filter(id => id !== userId));
-                              setFormValue("assignedToNames", createForm.assignedToNames.filter((_, i) => createForm.userIds[i] !== userId));
+                              setFormValue(
+                                "userIds",
+                                createForm.userIds.filter(
+                                  (id) => id !== userId,
+                                ),
+                              );
+                              setFormValue(
+                                "assignedToNames",
+                                createForm.assignedToNames.filter(
+                                  (_, i) => createForm.userIds[i] !== userId,
+                                ),
+                              );
                             }
                           }}
                           className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
                         />
-                        <span>{u.firstName} {u.surname} ({u.username})</span>
+                        <span>
+                          {u.firstName} {u.surname} ({u.username})
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -1222,9 +1374,12 @@ export const DashboardUser = () => {
       {taskToDeleteId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#20242d]/90 border border-[#333a47] rounded-2xl p-6 max-w-sm w-full shadow-2xl relative animate-scaleIn">
-            <h3 className="text-lg font-bold text-white mb-2">Eliminar Tarea</h3>
+            <h3 className="text-lg font-bold text-white mb-2">
+              Eliminar Tarea
+            </h3>
             <p className="text-sm text-[#94a3b8] mb-6">
-              ¿Deseas eliminar esta tarea? Se marcará como deshabilitada en la base de datos.
+              ¿Deseas eliminar esta tarea? Se marcará como deshabilitada en la
+              base de datos.
             </p>
             <div className="flex space-x-3">
               <button
@@ -1237,7 +1392,7 @@ export const DashboardUser = () => {
               <button
                 type="button"
                 onClick={() => {
-                  const task = tasks.find(t => t.id === taskToDeleteId);
+                  const task = tasks.find((t) => t.id === taskToDeleteId);
                   if (task) {
                     updateTask(taskToDeleteId, { ...task, isDisabled: true });
                     setSelectedTask(null);

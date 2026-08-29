@@ -13,6 +13,7 @@ public static class MappingExtensions
         Id = task.Id,
         Title = task.Title,
         Description = task.Description,
+        AcceptanceCriteria = task.AcceptanceCriteria,
         Status = task.Status.ToString(),
         CreatedAt = task.CreatedAt,
         UpdatedAt = task.UpdatedAt,
