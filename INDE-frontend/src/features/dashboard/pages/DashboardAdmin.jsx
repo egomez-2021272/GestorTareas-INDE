@@ -155,20 +155,32 @@ export const DashboardAdmin = () => {
   // Guardar nueva tarea (Admin)
   const handleCreateSubmit = (e) => {
     e.preventDefault();
-    if (!createForm.title.trim()) return;
+    if (!createForm.title.trim()) {
+      toast.error("El título de la tarea es obligatorio.");
+      return;
+    }
 
-    const descriptionText = [createForm.theme, createForm.epic]
-      .filter(Boolean)
-      .join("\n");
     const acceptanceItems = ensureAcceptanceItems(
       createForm.acceptanceCriteria || "",
     );
     const sanitizedAcceptanceItems = acceptanceItems.filter((item) =>
       item.label?.trim(),
     );
-    const acceptanceText = sanitizedAcceptanceItems.length
-      ? serializeAcceptanceChecklist(sanitizedAcceptanceItems)
-      : "[x] Validar la tarea según el criterio definido";
+
+    if (!sanitizedAcceptanceItems.length) {
+      toast.error("Agrega al menos un criterio de aceptación.");
+      return;
+    }
+
+    if (!createForm.userIds?.length) {
+      toast.error("Selecciona al menos un usuario asignado.");
+      return;
+    }
+
+    const descriptionText = [createForm.theme, createForm.epic]
+      .filter(Boolean)
+      .join("\n");
+    const acceptanceText = sanitizeAcceptanceString(sanitizedAcceptanceItems);
 
     addTask({
       ...createForm,
@@ -195,7 +207,7 @@ export const DashboardAdmin = () => {
   // Guardar cambios en tarea editada (Admin / Técnico actualizando estado)
   const handleEditSubmit = (e) => {
     e.preventDefault();
-    if (!editForm) return;
+    if (!editForm || !isAdmin) return;
 
     const normalizedDescription = [editForm.theme || "", editForm.epic || ""]
       .filter(Boolean)
@@ -248,6 +260,13 @@ export const DashboardAdmin = () => {
     });
   };
 
+  const setFormValue = (field, value) => {
+    setCreateForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   // Nombre legible de estados
   const getStatusLabel = (status) => {
     switch (status) {
@@ -288,6 +307,20 @@ export const DashboardAdmin = () => {
       .map((item) => `${item.checked ? "[x]" : "[ ]"} ${item.label}`.trim())
       .join("\n");
 
+  const sanitizeAcceptanceString = (items = []) => {
+    const cleaned = (items || [])
+      .filter((item) => item?.label?.trim())
+      .map((item) => ({
+        ...item,
+        label: item.label.trim(),
+        checked: Boolean(item.checked),
+      }));
+
+    return cleaned.length
+      ? serializeAcceptanceChecklist(cleaned)
+      : "[x] Validar la tarea según el criterio definido";
+  };
+
   const ensureAcceptanceItems = (value = "") => {
     const parsed = parseAcceptanceChecklist(value);
     if (parsed.length > 0) {
@@ -297,6 +330,56 @@ export const DashboardAdmin = () => {
       }));
     }
     return [{ id: `new-${Date.now()}`, label: "", checked: true }];
+  };
+
+  const STATUS_FLOW = {
+    ToDo: ["InProgress"],
+    InProgress: ["ToDo", "Pending"],
+    Pending: ["InProgress", "Completed"],
+    Completed: ["Pending"],
+  };
+
+  const canTransitionStatus = (currentStatus, nextStatus) => {
+    if (!currentStatus || !nextStatus) return true;
+    const allowed = STATUS_FLOW[currentStatus] || [];
+    return allowed.includes(nextStatus);
+  };
+
+  const handleStatusChange = (nextStatus) => {
+    if (!canTransitionStatus(editForm?.status, nextStatus)) {
+      const currentLabel = getStatusLabel(editForm?.status);
+      const nextLabel = getStatusLabel(nextStatus);
+      toast.error(
+        `No se puede avanzar de ${currentLabel} a ${nextLabel}. Sigue el flujo secuencial de la tarea.`,
+      );
+      return;
+    }
+
+    setEditForm({ ...editForm, status: nextStatus });
+  };
+
+  const updateAcceptanceItems = (currentValue, updater) => {
+    const items = ensureAcceptanceItems(currentValue);
+    const nextItems = updater(items);
+    return sanitizeAcceptanceString(nextItems);
+  };
+
+  const getStatusOptions = (currentStatus) => {
+    const base = currentStatus ? [currentStatus] : [];
+    const allowed = STATUS_FLOW[currentStatus] || [];
+    return [...new Set([...base, ...allowed])];
+  };
+
+  const addCriterionToForm = (setter, targetKey, currentValue) => {
+    const currentItems = ensureAcceptanceItems(currentValue);
+    const nextItems = [
+      ...currentItems,
+      { id: `new-${Date.now()}`, label: "", checked: true },
+    ];
+    setter((prev) => ({
+      ...prev,
+      [targetKey]: serializeAcceptanceChecklist(nextItems),
+    }));
   };
 
   return (
@@ -1039,8 +1122,8 @@ export const DashboardAdmin = () => {
       {/* DETAILED VIEW MODAL */}
       {selectedTask && editForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[860px] overflow-hidden shadow-2xl animate-fadeInScale">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#333a47] bg-[#2a2f3a]">
+          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[760px] overflow-hidden shadow-2xl animate-fadeInScale">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#333a47] bg-[#2a2f3a]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[#0aa5b5]/15 flex items-center justify-center text-[#0aa5b5]">
                   <CheckSquare size={18} />
@@ -1049,7 +1132,7 @@ export const DashboardAdmin = () => {
                   <p className="text-[10px] uppercase tracking-[0.2em] text-[#94a3b8]">
                     Tarea
                   </p>
-                  <h3 className="font-bold text-white text-sm">
+                  <h3 className="font-bold text-white text-sm truncate max-w-[420px]">
                     {selectedTask.title}
                   </h3>
                 </div>
@@ -1066,22 +1149,26 @@ export const DashboardAdmin = () => {
             </div>
 
             <div
-              className={`grid grid-cols-1 ${showTaskDetails ? "xl:grid-cols-[1.6fr_0.9fr]" : ""}`}
+              className={`grid grid-cols-1 ${showTaskDetails ? "lg:grid-cols-[1.6fr_0.8fr]" : ""}`}
             >
-              <form onSubmit={handleEditSubmit} className="p-5 space-y-4">
+              <form onSubmit={handleEditSubmit} className="p-4 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
                     {getStatusLabel(editForm.status)}
                   </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
-                    {selectedTask.tags?.length || 0} etiquetas
-                  </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
-                    {selectedTask.assignedUsers?.length ||
-                      editForm.assignedToNames?.length ||
-                      0}{" "}
-                    miembros
-                  </span>
+                  {selectedTask.tags?.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wide"
+                      style={{
+                        backgroundColor: `${tag.color}15`,
+                        color: tag.color,
+                        borderColor: `${tag.color}40`,
+                      }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
                 </div>
 
                 <div>
@@ -1103,31 +1190,21 @@ export const DashboardAdmin = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                      Tema
+                      Responsable
                     </label>
-                    <input
-                      type="text"
-                      value={editForm.theme || ""}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, theme: e.target.value })
-                      }
-                      disabled={!isAdmin}
-                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
-                    />
+                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#e2e8f0]">
+                      {editForm.assignedToNames?.length > 0
+                        ? editForm.assignedToNames.join(", ")
+                        : "Sin asignar"}
+                    </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                      Épica
+                      Fecha de creación
                     </label>
-                    <input
-                      type="text"
-                      value={editForm.epic || ""}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, epic: e.target.value })
-                      }
-                      disabled={!isAdmin}
-                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
-                    />
+                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8]">
+                      {new Date(selectedTask.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
                 </div>
 
@@ -1136,122 +1213,18 @@ export const DashboardAdmin = () => {
                     Descripción técnica
                   </label>
                   <textarea
-                    value={editForm.description}
+                    value={editForm.description || ""}
                     onChange={(e) =>
                       setEditForm({ ...editForm, description: e.target.value })
                     }
                     disabled={!isAdmin}
                     rows={3}
                     className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
-                    placeholder="Detalles de la tarea..."
                   />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                      Estado
-                    </label>
-                    <select
-                      value={editForm.status}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, status: e.target.value })
-                      }
-                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                    >
-                      <option value="ToDo">Por Hacer (ToDo)</option>
-                      <option value="InProgress">En Proceso</option>
-                      <option value="Pending">En Espera (Pending)</option>
-                      <option value="Completed">Completado</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                      Fecha de creación
-                    </label>
-                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                      {new Date(selectedTask.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Miembros asignados
-                  </label>
-                  {isAdmin ? (
-                    <div className="bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 space-y-1.5 max-h-36 overflow-y-auto">
-                      {users.map((u) => {
-                        const userId = String(u.id || u._id);
-                        const isChecked = (editForm.userIds || []).includes(
-                          userId,
-                        );
-                        return (
-                          <label
-                            key={userId}
-                            className="flex items-center gap-2 text-[11px] text-[#e2e8f0] cursor-pointer select-none rounded px-2 py-1 hover:bg-[#20242d]"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => {
-                                const nextIds = isChecked
-                                  ? (editForm.userIds || []).filter(
-                                      (id) => id !== userId,
-                                    )
-                                  : [...(editForm.userIds || []), userId];
-                                const nextNames = users
-                                  .filter((item) =>
-                                    nextIds.includes(
-                                      String(item.id || item._id),
-                                    ),
-                                  )
-                                  .map((item) =>
-                                    `${item.firstName} ${item.surname || ""}`.trim(),
-                                  );
-                                setEditForm({
-                                  ...editForm,
-                                  userIds: nextIds,
-                                  assignedToNames: nextNames,
-                                });
-                              }}
-                              className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d]"
-                            />
-                            <span className="truncate">
-                              {u.firstName} {u.surname || ""} ({u.username})
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                      {editForm.assignedToNames?.length > 0
-                        ? editForm.assignedToNames.join(", ")
-                        : "Sin asignar"}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
-                    Historias de usuario
-                  </label>
-                  <textarea
-                    value={editForm.userStories || ""}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, userStories: e.target.value })
-                    }
-                    disabled={!isAdmin}
-                    rows={3}
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
-                    placeholder="Como administrador quiero ..."
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
                     Criterios de aceptación
                   </label>
                   <div className="space-y-2 bg-[#12141a] border border-[#333a47] rounded-lg p-3">
@@ -1260,12 +1233,14 @@ export const DashboardAdmin = () => {
                     ).map((item, index) => (
                       <div
                         key={item.id || `${index}-criterion`}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 min-w-0"
                       >
                         <input
                           type="checkbox"
-                          checked={item.checked}
+                          checked={Boolean(item.checked)}
+                          disabled={!isAdmin}
                           onChange={(e) => {
+                            if (!isAdmin) return;
                             const currentItems = ensureAcceptanceItems(
                               editForm.acceptanceCriteria || "",
                             );
@@ -1276,12 +1251,14 @@ export const DashboardAdmin = () => {
                                 serializeAcceptanceChecklist(currentItems),
                             });
                           }}
-                          className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d]"
+                          className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d] shrink-0 disabled:opacity-60"
                         />
                         <input
                           type="text"
-                          value={item.label}
+                          value={item.label || ""}
+                          disabled={!isAdmin}
                           onChange={(e) => {
+                            if (!isAdmin) return;
                             const currentItems = ensureAcceptanceItems(
                               editForm.acceptanceCriteria || "",
                             );
@@ -1293,97 +1270,117 @@ export const DashboardAdmin = () => {
                             });
                           }}
                           placeholder="Agregar criterio"
-                          className="flex-1 bg-transparent text-xs text-white placeholder:text-[#64748b] focus:outline-none"
+                          className="flex-1 min-w-0 bg-transparent text-xs text-white placeholder:text-[#64748b] focus:outline-none disabled:opacity-60"
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const currentItems = ensureAcceptanceItems(
-                              editForm.acceptanceCriteria || "",
-                            );
-                            const filtered = currentItems.filter(
-                              (_, i) => i !== index,
-                            );
-                            setEditForm({
-                              ...editForm,
-                              acceptanceCriteria: serializeAcceptanceChecklist(
-                                filtered.length
-                                  ? filtered
-                                  : [
-                                      {
-                                        id: "new-criterion",
-                                        label: "",
-                                        checked: true,
-                                      },
-                                    ],
-                              ),
-                            });
-                          }}
-                          className="text-[#94a3b8] hover:text-white text-sm"
-                        >
-                          ×
-                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const currentItems = ensureAcceptanceItems(
+                                editForm.acceptanceCriteria || "",
+                              );
+                              const filtered = currentItems.filter(
+                                (_, i) => i !== index,
+                              );
+                              setEditForm({
+                                ...editForm,
+                                acceptanceCriteria:
+                                  serializeAcceptanceChecklist(
+                                    filtered.length
+                                      ? filtered
+                                      : [
+                                          {
+                                            id: `new-${Date.now()}`,
+                                            label: "",
+                                            checked: true,
+                                          },
+                                        ],
+                                  ),
+                              });
+                            }}
+                            className="text-[#94a3b8] hover:text-white text-sm shrink-0"
+                          >
+                            ×
+                          </button>
+                        )}
                       </div>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const currentItems = ensureAcceptanceItems(
-                          editForm.acceptanceCriteria || "",
-                        );
-                        setEditForm({
-                          ...editForm,
-                          acceptanceCriteria: serializeAcceptanceChecklist([
-                            ...currentItems,
-                            {
-                              id: `new-${Date.now()}`,
-                              label: "",
-                              checked: true,
-                            },
-                          ]),
-                        });
-                      }}
-                      className="mt-2 text-[10px] uppercase tracking-wider text-[#0aa5b5] hover:text-[#22c1d3]"
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          addCriterionToForm(
+                            setEditForm,
+                            "acceptanceCriteria",
+                            editForm.acceptanceCriteria || "",
+                          )
+                        }
+                        className="mt-2 text-[10px] uppercase tracking-wider text-[#0aa5b5] hover:text-[#22c1d3]"
+                      >
+                        + Añadir criterio
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {isAdmin && (
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Estado
+                    </label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => handleStatusChange(e.target.value)}
+                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
                     >
-                      + Añadir criterio
-                    </button>
+                      {getStatusOptions(editForm.status).map((status) => (
+                        <option key={status} value={status}>
+                          {getStatusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
-                    Etiquetas
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => {
-                      const isChecked = editForm.tagIds?.includes(tag.id);
-                      return (
-                        <button
-                          type="button"
-                          key={tag.id}
-                          onClick={() =>
-                            isAdmin &&
-                            toggleTagSelection(editForm, setEditForm, tag.id)
-                          }
-                          className={`px-2.5 py-1.5 rounded-full text-[10px] font-bold border transition-all ${isChecked ? "border-transparent" : "border-[#333a47]"} ${isAdmin ? "cursor-pointer" : "cursor-default"}`}
-                          style={{
-                            backgroundColor: isChecked
-                              ? `${tag.color}25`
-                              : "#2a2f3a",
-                            color: tag.color,
-                            borderColor: isChecked
-                              ? `${tag.color}60`
-                              : "#333a47",
-                          }}
-                        >
-                          {tag.name}
-                        </button>
-                      );
-                    })}
+                {isAdmin && (
+                  <div>
+                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                      Etiqueta
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 bg-[#12141a] border border-[#333a47] p-3 rounded-lg">
+                      {tags.map((tag) => {
+                        const isChecked = editForm.tagIds?.includes(tag.id);
+                        return (
+                          <label
+                            key={tag.id}
+                            className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none"
+                          >
+                            <input
+                              type="radio"
+                              name="edit-task-tag"
+                              checked={Boolean(isChecked)}
+                              onChange={() =>
+                                setEditForm({
+                                  ...editForm,
+                                  tagIds: [tag.id],
+                                })
+                              }
+                              className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
+                            />
+                            <span
+                              style={{ color: tag.color }}
+                              className="font-semibold"
+                            >
+                              {tag.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="flex justify-between items-center pt-4 border-t border-[#333a47] mt-4">
+                <div className="flex justify-between items-center pt-3 border-t border-[#333a47]">
                   <div>
                     {isAdmin && (
                       <button
@@ -1408,71 +1405,72 @@ export const DashboardAdmin = () => {
                     >
                       Cancelar
                     </button>
-                    <button
-                      type="submit"
-                      className="bg-[#669a71] hover:brightness-110 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all"
-                    >
-                      Guardar
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="submit"
+                        className="bg-[#669a71] hover:brightness-110 text-white px-5 py-2 rounded-lg text-xs font-bold transition-all"
+                      >
+                        Guardar
+                      </button>
+                    )}
                   </div>
                 </div>
               </form>
 
               {showTaskDetails && (
-                <aside className="border-l border-[#333a47] bg-[#171d27] p-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#333a47]">
-                    <h4 className="text-sm font-bold text-white">
-                      Comentarios y Actividad
+                <aside className="border-l border-[#333a47] bg-[#171d27] p-3">
+                  <div className="flex items-center justify-between pb-3 border-b border-[#333a47] mb-3">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Detalles
                     </h4>
                     <button
                       type="button"
                       onClick={() => setShowTaskDetails(false)}
                       className="text-[10px] uppercase tracking-wide text-[#94a3b8] hover:text-white"
                     >
-                      Ocultar detalles
+                      Ocultar
                     </button>
                   </div>
 
-                  <div className="mt-4 space-y-3">
-                    {taskActivity.length === 0 ? (
-                      <div className="rounded-xl border border-[#333a47] bg-[#20242d] p-3 text-xs text-[#94a3b8]">
-                        Aún no hay actividad para esta tarea.
-                      </div>
-                    ) : (
-                      taskActivity.map((log) => (
-                        <div
-                          key={log.id}
-                          className="rounded-xl border border-[#333a47] bg-[#20242d] p-3"
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="w-6 h-6 rounded-full bg-[#0aa5b5]/15 text-[#0aa5b5] flex items-center justify-center text-[10px] font-bold">
-                              {log.userName?.charAt(0)?.toUpperCase() || "E"}
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-white">
-                                {log.userName}
-                              </p>
-                              <p className="text-[10px] text-[#94a3b8]">
-                                {new Date(log.createdAt).toLocaleDateString()} ·{" "}
-                                {new Date(log.createdAt).toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" },
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-xs text-[#dfe7f5] leading-relaxed">
-                            {log.description}
-                          </p>
-                        </div>
-                      ))
-                    )}
+                  <div className="space-y-3 text-xs text-[#dfe7f5]">
+                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
+                        Tema
+                      </p>
+                      <p>{editForm.theme || "Sin tema"}</p>
+                    </div>
+                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
+                        Épica
+                      </p>
+                      <p>{editForm.epic || "Sin épica"}</p>
+                    </div>
+                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
+                        Historia de usuario
+                      </p>
+                      <p>{editForm.userStories || "Sin historia"}</p>
+                    </div>
+                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
+                        Asignados
+                      </p>
+                      <p>
+                        {editForm.assignedToNames?.join(", ") || "Sin asignar"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
+                        Estado
+                      </p>
+                      <p>{getStatusLabel(editForm.status)}</p>
+                    </div>
                   </div>
                 </aside>
               )}
 
               {!showTaskDetails && (
-                <div className="border-l border-[#333a47] bg-[#171d27] p-4 flex items-center justify-center">
+                <div className="border-l border-[#333a47] bg-[#171d27] p-3 flex items-center justify-center">
                   <button
                     type="button"
                     onClick={() => setShowTaskDetails(true)}
@@ -1593,7 +1591,7 @@ export const DashboardAdmin = () => {
                     >
                       <input
                         type="checkbox"
-                        checked={item.checked}
+                        checked={Boolean(item.checked)}
                         onChange={(e) => {
                           const currentItems = ensureAcceptanceItems(
                             createForm.acceptanceCriteria || "",
@@ -1609,7 +1607,7 @@ export const DashboardAdmin = () => {
                       />
                       <input
                         type="text"
-                        value={item.label}
+                        value={item.label || ""}
                         onChange={(e) => {
                           const currentItems = ensureAcceptanceItems(
                             createForm.acceptanceCriteria || "",
