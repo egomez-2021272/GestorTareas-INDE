@@ -56,13 +56,6 @@ export const TaskList = ({ tasks, onTaskSelect, users }) => {
   );
 };
 
-const parseChecklist = (value = "") =>
-  value
-    .split(/\n|•|;|\-/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 6);
-
 const TaskCard = ({ task, isCompleted, onSelect, users }) => {
   const { user: currentUser } = useAuthStore();
 
@@ -120,24 +113,9 @@ const TaskCard = ({ task, isCompleted, onSelect, users }) => {
           </span>
         )}
       </div>
-      <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
+      <p className="text-xs text-[#94a3b8] mt-2 line-clamp-3 leading-relaxed">
         {task.description}
       </p>
-      {task.acceptanceCriteria && (
-        <div className="mt-3 space-y-1.5 border-l border-[#0aa5b5]/35 pl-2">
-          {parseChecklist(task.acceptanceCriteria).map((item, index) => (
-            <div
-              key={`${task.id}-check-${index}`}
-              className="flex items-center gap-2 text-[10px] text-[#dfe7f5]"
-            >
-              <span className="w-3.5 h-3.5 rounded border border-[#94a3b8] bg-[#12141a] flex items-center justify-center text-[8px] text-[#0aa5b5]">
-                {index + 1}
-              </span>
-              <span className="line-clamp-1">{item}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {task.tags && task.tags.length > 0 && (
         <div className="mt-4 pt-3 border-t border-[#333a47] flex flex-wrap gap-1.5">

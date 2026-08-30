@@ -23,6 +23,8 @@ import LogoInde from "../../../assets/img/indelogo.png";
 import { UsersTab } from "../components/UsersTab";
 import { BitacoraTab } from "../components/BitacoraTab";
 import { NotificationsPanel } from "../components/NotificationsPanel";
+import { AcceptanceChecklistField } from "../components/AcceptanceChecklistField";
+import { TaskDetailSidebar } from "../components/TaskDetailSidebar";
 
 export const DashboardAdmin = () => {
   const { user, logout, users, fetchUsers } = useAuthStore();
@@ -160,14 +162,21 @@ export const DashboardAdmin = () => {
       return;
     }
 
-    const acceptanceItems = ensureAcceptanceItems(
-      createForm.acceptanceCriteria || "",
-    );
-    const sanitizedAcceptanceItems = acceptanceItems.filter((item) =>
-      item.label?.trim(),
-    );
+    const criteriaText = (createForm.acceptanceCriteria || "").trim();
+    const cleanedCriteria = criteriaText
+      ? criteriaText
+          .split(/\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => {
+            const checked = /^\[(x|X|✓|✔)\]/.test(line);
+            const label = line.replace(/^\[(?:x|X|✓|✔|\s)\]\s*/, "").trim();
+            return { label, checked };
+          })
+          .filter((item) => item.label)
+      : [];
 
-    if (!sanitizedAcceptanceItems.length) {
+    if (!cleanedCriteria.length) {
       toast.error("Agrega al menos un criterio de aceptación.");
       return;
     }
@@ -180,7 +189,10 @@ export const DashboardAdmin = () => {
     const descriptionText = [createForm.theme, createForm.epic]
       .filter(Boolean)
       .join("\n");
-    const acceptanceText = sanitizeAcceptanceString(sanitizedAcceptanceItems);
+
+    const acceptanceText = cleanedCriteria
+      .map((item) => `${item.checked ? "[x]" : "[ ]"} ${item.label}`)
+      .join("\n");
 
     addTask({
       ...createForm,
@@ -209,20 +221,29 @@ export const DashboardAdmin = () => {
     e.preventDefault();
     if (!editForm || !isAdmin) return;
 
-    const normalizedDescription = [editForm.theme || "", editForm.epic || ""]
-      .filter(Boolean)
-      .join("\n");
-    const normalizedAcceptanceCriteria =
-      serializeAcceptanceChecklist(
-        parseAcceptanceChecklist(editForm.acceptanceCriteria),
-      ) ||
-      editForm.userStories?.trim() ||
-      editForm.acceptanceCriteria ||
-      "";
+    const normalizedDescription =
+      (editForm.description || "").trim() ||
+      [editForm.theme || "", editForm.epic || ""].filter(Boolean).join("\n");
+
+    const criteriaText = (editForm.acceptanceCriteria || "").trim();
+    const normalizedAcceptanceCriteria = criteriaText
+      ? criteriaText
+          .split(/\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => {
+            const checked = /^\[(x|X|✓|✔)\]/.test(line);
+            const label = line.replace(/^\[(?:x|X|✓|✔|\s)\]\s*/, "").trim();
+            return { label, checked };
+          })
+          .filter((item) => item.label)
+          .map((item) => `${item.checked ? "[x]" : "[ ]"} ${item.label}`)
+          .join("\n")
+      : "";
 
     updateTask(editForm.id, {
       ...editForm,
-      description: normalizedDescription || editForm.description,
+      description: normalizedDescription,
       acceptanceCriteria: normalizedAcceptanceCriteria,
     });
     setSelectedTask(null);
@@ -345,12 +366,27 @@ export const DashboardAdmin = () => {
     return allowed.includes(nextStatus);
   };
 
+  const hasAllAcceptanceCriteriaCompleted = (value = "") => {
+    const items = parseAcceptanceChecklist(value || "");
+    if (!items.length) return false;
+    return items.every((item) => item.checked);
+  };
+
   const handleStatusChange = (nextStatus) => {
     if (!canTransitionStatus(editForm?.status, nextStatus)) {
       const currentLabel = getStatusLabel(editForm?.status);
       const nextLabel = getStatusLabel(nextStatus);
       toast.error(
         `No se puede avanzar de ${currentLabel} a ${nextLabel}. Sigue el flujo secuencial de la tarea.`,
+      );
+      return;
+    }
+
+    if (
+      !hasAllAcceptanceCriteriaCompleted(editForm?.acceptanceCriteria || "")
+    ) {
+      toast.error(
+        "Debes completar todos los criterios de aceptación antes de cambiar el estado.",
       );
       return;
     }
@@ -820,8 +856,11 @@ export const DashboardAdmin = () => {
               setEditForm({
                 id: task.id,
                 title: task.title,
-                theme: task.description?.split(/\n/)[0] || "",
-                epic: task.description?.split(/\n/).slice(1).join("\n") || "",
+                theme: task.theme || task.description?.split(/\n/)[0] || "",
+                epic:
+                  task.epic ||
+                  task.description?.split(/\n/).slice(1).join("\n") ||
+                  "",
                 description: task.description || "",
                 status: task.status,
                 acceptanceCriteria: task.acceptanceCriteria || "",
@@ -1122,7 +1161,7 @@ export const DashboardAdmin = () => {
       {/* DETAILED VIEW MODAL */}
       {selectedTask && editForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[760px] overflow-hidden shadow-2xl animate-fadeInScale">
+          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[760px] max-h-[92vh] overflow-hidden shadow-2xl animate-fadeInScale">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#333a47] bg-[#2a2f3a]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[#0aa5b5]/15 flex items-center justify-center text-[#0aa5b5]">
@@ -1148,29 +1187,42 @@ export const DashboardAdmin = () => {
               </button>
             </div>
 
-            <div
-              className={`grid grid-cols-1 ${showTaskDetails ? "lg:grid-cols-[1.6fr_0.8fr]" : ""}`}
-            >
-              <form onSubmit={handleEditSubmit} className="p-4 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
-                    {getStatusLabel(editForm.status)}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#333a47] bg-[#1b2029]">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
+                  {getStatusLabel(editForm.status)}
+                </span>
+                {selectedTask.tags?.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center px-2 py-1 rounded-full border text-[9px] font-bold uppercase tracking-wide"
+                    style={{
+                      backgroundColor: `${tag.color}15`,
+                      color: tag.color,
+                      borderColor: `${tag.color}40`,
+                    }}
+                  >
+                    {tag.name}
                   </span>
-                  {selectedTask.tags?.map((tag) => (
-                    <span
-                      key={tag.id}
-                      className="inline-flex items-center px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wide"
-                      style={{
-                        backgroundColor: `${tag.color}15`,
-                        color: tag.color,
-                        borderColor: `${tag.color}40`,
-                      }}
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
-                </div>
+                ))}
+              </div>
 
+              <button
+                type="button"
+                onClick={() => setShowTaskDetails((prev) => !prev)}
+                className="text-[10px] uppercase tracking-wide text-[#94a3b8] hover:text-white border border-[#333a47] rounded-lg px-3 py-2 bg-[#20242d]"
+              >
+                {showTaskDetails ? "Ocultar detalles" : "Mostrar detalles"}
+              </button>
+            </div>
+
+            <div
+              className={`grid grid-cols-1 ${showTaskDetails ? "lg:grid-cols-[1.55fr_0.95fr]" : ""}`}
+            >
+              <form
+                onSubmit={handleEditSubmit}
+                className="p-4 space-y-3 max-h-[72vh] overflow-y-auto"
+              >
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
                     Título
@@ -1223,105 +1275,17 @@ export const DashboardAdmin = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Criterios de aceptación
-                  </label>
-                  <div className="space-y-2 bg-[#12141a] border border-[#333a47] rounded-lg p-3">
-                    {ensureAcceptanceItems(
-                      editForm.acceptanceCriteria || "",
-                    ).map((item, index) => (
-                      <div
-                        key={item.id || `${index}-criterion`}
-                        className="flex items-center gap-2 min-w-0"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={Boolean(item.checked)}
-                          disabled={!isAdmin}
-                          onChange={(e) => {
-                            if (!isAdmin) return;
-                            const currentItems = ensureAcceptanceItems(
-                              editForm.acceptanceCriteria || "",
-                            );
-                            currentItems[index].checked = e.target.checked;
-                            setEditForm({
-                              ...editForm,
-                              acceptanceCriteria:
-                                serializeAcceptanceChecklist(currentItems),
-                            });
-                          }}
-                          className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d] shrink-0 disabled:opacity-60"
-                        />
-                        <input
-                          type="text"
-                          value={item.label || ""}
-                          disabled={!isAdmin}
-                          onChange={(e) => {
-                            if (!isAdmin) return;
-                            const currentItems = ensureAcceptanceItems(
-                              editForm.acceptanceCriteria || "",
-                            );
-                            currentItems[index].label = e.target.value;
-                            setEditForm({
-                              ...editForm,
-                              acceptanceCriteria:
-                                serializeAcceptanceChecklist(currentItems),
-                            });
-                          }}
-                          placeholder="Agregar criterio"
-                          className="flex-1 min-w-0 bg-transparent text-xs text-white placeholder:text-[#64748b] focus:outline-none disabled:opacity-60"
-                        />
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const currentItems = ensureAcceptanceItems(
-                                editForm.acceptanceCriteria || "",
-                              );
-                              const filtered = currentItems.filter(
-                                (_, i) => i !== index,
-                              );
-                              setEditForm({
-                                ...editForm,
-                                acceptanceCriteria:
-                                  serializeAcceptanceChecklist(
-                                    filtered.length
-                                      ? filtered
-                                      : [
-                                          {
-                                            id: `new-${Date.now()}`,
-                                            label: "",
-                                            checked: true,
-                                          },
-                                        ],
-                                  ),
-                              });
-                            }}
-                            className="text-[#94a3b8] hover:text-white text-sm shrink-0"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          addCriterionToForm(
-                            setEditForm,
-                            "acceptanceCriteria",
-                            editForm.acceptanceCriteria || "",
-                          )
-                        }
-                        className="mt-2 text-[10px] uppercase tracking-wider text-[#0aa5b5] hover:text-[#22c1d3]"
-                      >
-                        + Añadir criterio
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <AcceptanceChecklistField
+                  value={editForm.acceptanceCriteria || ""}
+                  disabled={!isAdmin}
+                  maxItems={6}
+                  onChange={(nextValue) =>
+                    setEditForm({
+                      ...editForm,
+                      acceptanceCriteria: nextValue,
+                    })
+                  }
+                />
 
                 {isAdmin && (
                   <div>
@@ -1339,44 +1303,6 @@ export const DashboardAdmin = () => {
                         </option>
                       ))}
                     </select>
-                  </div>
-                )}
-
-                {isAdmin && (
-                  <div>
-                    <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                      Etiqueta
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 bg-[#12141a] border border-[#333a47] p-3 rounded-lg">
-                      {tags.map((tag) => {
-                        const isChecked = editForm.tagIds?.includes(tag.id);
-                        return (
-                          <label
-                            key={tag.id}
-                            className="flex items-center space-x-2.5 text-xs text-[#e2e8f0] cursor-pointer select-none"
-                          >
-                            <input
-                              type="radio"
-                              name="edit-task-tag"
-                              checked={Boolean(isChecked)}
-                              onChange={() =>
-                                setEditForm({
-                                  ...editForm,
-                                  tagIds: [tag.id],
-                                })
-                              }
-                              className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
-                            />
-                            <span
-                              style={{ color: tag.color }}
-                              className="font-semibold"
-                            >
-                              {tag.name}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
                   </div>
                 )}
 
@@ -1418,67 +1344,17 @@ export const DashboardAdmin = () => {
               </form>
 
               {showTaskDetails && (
-                <aside className="border-l border-[#333a47] bg-[#171d27] p-3">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#333a47] mb-3">
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                      Detalles
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => setShowTaskDetails(false)}
-                      className="text-[10px] uppercase tracking-wide text-[#94a3b8] hover:text-white"
-                    >
-                      Ocultar
-                    </button>
-                  </div>
-
-                  <div className="space-y-3 text-xs text-[#dfe7f5]">
-                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
-                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
-                        Tema
-                      </p>
-                      <p>{editForm.theme || "Sin tema"}</p>
-                    </div>
-                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
-                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
-                        Épica
-                      </p>
-                      <p>{editForm.epic || "Sin épica"}</p>
-                    </div>
-                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
-                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
-                        Historia de usuario
-                      </p>
-                      <p>{editForm.userStories || "Sin historia"}</p>
-                    </div>
-                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
-                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
-                        Asignados
-                      </p>
-                      <p>
-                        {editForm.assignedToNames?.join(", ") || "Sin asignar"}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-[#333a47] bg-[#20242d] p-2.5">
-                      <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] mb-1">
-                        Estado
-                      </p>
-                      <p>{getStatusLabel(editForm.status)}</p>
-                    </div>
-                  </div>
-                </aside>
-              )}
-
-              {!showTaskDetails && (
-                <div className="border-l border-[#333a47] bg-[#171d27] p-3 flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowTaskDetails(true)}
-                    className="text-[10px] uppercase tracking-wide text-[#94a3b5] hover:text-white border border-[#333a47] rounded-lg px-3 py-2 bg-[#20242d]"
-                  >
-                    Mostrar detalles
-                  </button>
-                </div>
+                <TaskDetailSidebar
+                  editForm={editForm}
+                  tags={tags}
+                  canEdit={isAdmin}
+                  onTagChange={(tagId) =>
+                    setEditForm({
+                      ...editForm,
+                      tagIds: [tagId],
+                    })
+                  }
+                />
               )}
             </div>
           </div>
@@ -1577,101 +1453,16 @@ export const DashboardAdmin = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                  Criterios de aceptación
-                </label>
-                <div className="space-y-2 bg-[#12141a] border border-[#333a47] rounded-lg p-3 max-h-[170px] overflow-y-auto">
-                  {ensureAcceptanceItems(
-                    createForm.acceptanceCriteria || "",
-                  ).map((item, index) => (
-                    <div
-                      key={item.id || `${index}-criterion`}
-                      className="flex items-center gap-2 min-w-0"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={Boolean(item.checked)}
-                        onChange={(e) => {
-                          const currentItems = ensureAcceptanceItems(
-                            createForm.acceptanceCriteria || "",
-                          );
-                          currentItems[index].checked = e.target.checked;
-                          setCreateForm({
-                            ...createForm,
-                            acceptanceCriteria:
-                              serializeAcceptanceChecklist(currentItems),
-                          });
-                        }}
-                        className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d] shrink-0"
-                      />
-                      <input
-                        type="text"
-                        value={item.label || ""}
-                        onChange={(e) => {
-                          const currentItems = ensureAcceptanceItems(
-                            createForm.acceptanceCriteria || "",
-                          );
-                          currentItems[index].label = e.target.value;
-                          setCreateForm({
-                            ...createForm,
-                            acceptanceCriteria:
-                              serializeAcceptanceChecklist(currentItems),
-                          });
-                        }}
-                        placeholder="Agregar criterio"
-                        className="flex-1 min-w-0 bg-transparent text-xs text-white placeholder:text-[#64748b] focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentItems = ensureAcceptanceItems(
-                            createForm.acceptanceCriteria || "",
-                          );
-                          const filtered = currentItems.filter(
-                            (_, i) => i !== index,
-                          );
-                          setCreateForm({
-                            ...createForm,
-                            acceptanceCriteria: serializeAcceptanceChecklist(
-                              filtered.length
-                                ? filtered
-                                : [
-                                    {
-                                      id: `new-${Date.now()}`,
-                                      label: "",
-                                      checked: true,
-                                    },
-                                  ],
-                            ),
-                          });
-                        }}
-                        className="text-[#94a3b8] hover:text-white text-sm shrink-0"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentItems = ensureAcceptanceItems(
-                        createForm.acceptanceCriteria || "",
-                      );
-                      setCreateForm({
-                        ...createForm,
-                        acceptanceCriteria: serializeAcceptanceChecklist([
-                          ...currentItems,
-                          { id: `new-${Date.now()}`, label: "", checked: true },
-                        ]),
-                      });
-                    }}
-                    className="mt-2 text-[10px] uppercase tracking-wider text-[#0aa5b5] hover:text-[#22c1d3]"
-                  >
-                    + Añadir criterio
-                  </button>
-                </div>
-              </div>
+              <AcceptanceChecklistField
+                value={createForm.acceptanceCriteria || ""}
+                maxItems={6}
+                onChange={(nextValue) =>
+                  setCreateForm({
+                    ...createForm,
+                    acceptanceCriteria: nextValue,
+                  })
+                }
+              />
 
               <div>
                 <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
@@ -1929,6 +1720,9 @@ export const DashboardAdmin = () => {
                   const task = tasks.find((t) => t.id === taskToDeleteId);
                   if (task) {
                     updateTask(taskToDeleteId, { ...task, isDisabled: true });
+                    toast.success(
+                      "Tarea deshabilitada y ocultada del tablero.",
+                    );
                     setSelectedTask(null);
                     setEditForm(null);
                   }
