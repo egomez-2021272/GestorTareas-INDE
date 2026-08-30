@@ -337,9 +337,7 @@ export const DashboardAdmin = () => {
         checked: Boolean(item.checked),
       }));
 
-    return cleaned.length
-      ? serializeAcceptanceChecklist(cleaned)
-      : "[x] Validar la tarea según el criterio definido";
+    return cleaned.length ? serializeAcceptanceChecklist(cleaned) : "";
   };
 
   const ensureAcceptanceItems = (value = "") => {
@@ -350,7 +348,7 @@ export const DashboardAdmin = () => {
         id: `${index}-${item.label || "criterion"}`,
       }));
     }
-    return [{ id: `new-${Date.now()}`, label: "", checked: true }];
+    return [{ id: `new-${Date.now()}`, label: "", checked: false }];
   };
 
   const STATUS_FLOW = {
@@ -410,7 +408,7 @@ export const DashboardAdmin = () => {
     const currentItems = ensureAcceptanceItems(currentValue);
     const nextItems = [
       ...currentItems,
-      { id: `new-${Date.now()}`, label: "", checked: true },
+      { id: `new-${Date.now()}`, label: "", checked: false },
     ];
     setter((prev) => ({
       ...prev,
@@ -1280,10 +1278,10 @@ export const DashboardAdmin = () => {
                   disabled={!isAdmin}
                   maxItems={6}
                   onChange={(nextValue) =>
-                    setEditForm({
-                      ...editForm,
+                    setEditForm((prev) => ({
+                      ...prev,
                       acceptanceCriteria: nextValue,
-                    })
+                    }))
                   }
                 />
 
@@ -1457,10 +1455,10 @@ export const DashboardAdmin = () => {
                 value={createForm.acceptanceCriteria || ""}
                 maxItems={6}
                 onChange={(nextValue) =>
-                  setCreateForm({
-                    ...createForm,
+                  setCreateForm((prev) => ({
+                    ...prev,
                     acceptanceCriteria: nextValue,
-                  })
+                  }))
                 }
               />
 

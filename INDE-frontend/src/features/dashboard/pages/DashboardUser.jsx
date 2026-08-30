@@ -17,6 +17,8 @@ import {
 import LogoInde from "../../../assets/img/indelogo.png";
 import { UsersTab } from "../components/UsersTab";
 import { NotificationsPanel } from "../components/NotificationsPanel";
+import { AcceptanceChecklistField } from "../components/AcceptanceChecklistField";
+import { TaskDetailSidebar } from "../components/TaskDetailSidebar";
 
 export const DashboardUser = () => {
   const { user, logout, users, fetchUsers } = useAuthStore();
@@ -27,7 +29,7 @@ export const DashboardUser = () => {
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, tasks, users
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Para mobile
   const [selectedTask, setSelectedTask] = useState(null); // Para modal de detalles
-  const [taskActivity, setTaskActivity] = useState([]);
+  const [showTaskDetails, setShowTaskDetails] = useState(false); // Para mostrar/ocultar panel de detalles (tags, etc.)
   const [isCreateOpen, setIsCreateOpen] = useState(false); // Sidebar de creación
   const [taskToDeleteId, setTaskToDeleteId] = useState(null); // ID de la tarea a eliminar
 
@@ -39,6 +41,7 @@ export const DashboardUser = () => {
     tagIds: [],
     userIds: [],
     assignedToNames: [],
+    userStories: "",
   });
 
   const [editForm, setEditForm] = useState(null);
@@ -49,28 +52,6 @@ export const DashboardUser = () => {
       fetchUsers();
     }
   }, []);
-
-  useEffect(() => {
-    if (!selectedTask) {
-      setTaskActivity([]);
-      return;
-    }
-
-    const loadTaskActivity = async () => {
-      try {
-        const response = await axios.get("http://localhost:5214/api/auditlogs");
-        const filtered = response.data.filter(
-          (log) => String(log.entityId) === String(selectedTask.id),
-        );
-        setTaskActivity(filtered.slice(0, 8));
-      } catch (error) {
-        console.error("Error cargando actividad de tarea:", error);
-        setTaskActivity([]);
-      }
-    };
-
-    loadTaskActivity();
-  }, [selectedTask]);
 
   const handleLogout = () => {
     logout();
@@ -117,27 +98,23 @@ export const DashboardUser = () => {
     });
   };
 
-  // Guardar cambios en tarea editada (Admin / Técnico actualizando estado)
+  // Guardar cambios en tarea (Técnico): SOLO puede actualizar los
+  // criterios de aceptación marcados/desmarcados. Nada más se persiste,
+  // sin importar lo que contenga editForm.
   const handleEditSubmit = (e) => {
     e.preventDefault();
-    if (!editForm) return;
+    if (!editForm || !selectedTask) return;
 
-    updateTask(editForm.id, editForm);
+    updateTask(editForm.id, {
+      ...selectedTask,
+      acceptanceCriteria: editForm.acceptanceCriteria,
+    });
     setSelectedTask(null);
     setEditForm(null);
   };
 
   const handleDelete = (id) => {
     setTaskToDeleteId(id);
-  };
-
-  // Toggle etiquetas seleccionadas en formularios
-  const toggleTagSelection = (form, setForm, tagId) => {
-    const currentTagId = form.tagIds?.[0];
-    setForm({
-      ...form,
-      tagIds: currentTagId === tagId ? [] : [tagId],
-    });
   };
 
   // Nombre legible de estados
@@ -155,13 +132,6 @@ export const DashboardUser = () => {
         return status;
     }
   };
-
-  const parseChecklist = (value = "") =>
-    value
-      .split(/\n|•|;|\-/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .slice(0, 6);
 
   return (
     <div className="inde-dashboard-layout bg-[#12141a] min-h-screen text-[#e2e8f0]">
@@ -571,20 +541,29 @@ export const DashboardUser = () => {
           </div>
         )}
 
-        {/* 2. KANBAN BOARD VIEW */}
+        {/* 2. KANBAN BOARD VIEW (4 columnas horizontales, responsive) */}
         {activeTab === "tasks" && (
           <TaskList
             tasks={tasks}
             users={users}
             onTaskSelect={(task) => {
               setSelectedTask(task);
+              setShowTaskDetails(false);
               setEditForm({
                 id: task.id,
                 title: task.title,
-                description: task.description,
+                theme: task.theme || task.description?.split(/\n/)[0] || "",
+                epic:
+                  task.epic ||
+                  task.description?.split(/\n/).slice(1).join("\n") ||
+                  "",
+                description: task.description || "",
                 status: task.status,
+                acceptanceCriteria: task.acceptanceCriteria || "",
+                userStories: task.userStories || "",
                 tagIds: task.tags?.map((tag) => tag.id) || [],
-                userIds: task.assignedUsers?.map((au) => au.userId) || [],
+                userIds:
+                  task.assignedUsers?.map((au) => String(au.userId)) || [],
                 assignedToNames:
                   task.assignedUsers?.map((au) => au.assignedToName) || [],
                 isDisabled: task.isDisabled || false,
@@ -595,288 +574,13 @@ export const DashboardUser = () => {
 
         {/* 3. USERS VIEW */}
         {activeTab === "users" && isAdmin && <UsersTab />}
-
-        {false && (
-          <div className="flex-1 flex flex-col min-h-0 animate-fadeIn">
-            {/* COLUMN LAYOUT (4 COLUMNS - TODO, IN PROGRESS, PENDING, COMPLETED) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
-              {/* COLUMN 1: POR HACER (ToDo) */}
-              <div className="bg-[#20242d]/40 rounded-2xl border border-[#333a47]/50 p-4 flex flex-col">
-                <div className="flex justify-between items-center mb-4 px-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2.5 h-2.5 bg-[#c95d5d] rounded-full"></div>
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                      Por Hacer
-                    </h3>
-                  </div>
-                  <span className="bg-[#2a2f3a] px-2.5 py-0.5 rounded-full text-xs text-[#94a3b8] font-bold">
-                    {toDoTasks}
-                  </span>
-                </div>
-                <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[60vh] md:max-h-[none]">
-                  {tasks
-                    .filter((t) => t.status === "ToDo")
-                    .map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          setSelectedTask(task);
-                          setEditForm({
-                            id: task.id,
-                            title: task.title,
-                            description: task.description,
-                            status: task.status,
-                            tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds:
-                              task.assignedUsers?.map((au) => au.userId) || [],
-                            assignedToNames:
-                              task.assignedUsers?.map(
-                                (au) => au.assignedToName,
-                              ) || [],
-                            isDisabled: task.isDisabled || false,
-                          });
-                        }}
-                        className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
-                      >
-                        <h4 className="text-sm font-semibold text-white leading-snug group-hover:text-[#22c1d3] transition-colors">
-                          {task.title}
-                        </h4>
-                        <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
-                          {task.description}
-                        </p>
-
-                        {task.tags && task.tags.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-[#333a47] flex flex-wrap gap-1.5">
-                            {task.tags.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border"
-                                style={{
-                                  backgroundColor: `${tag.color}15`,
-                                  color: tag.color,
-                                  borderColor: `${tag.color}30`,
-                                }}
-                              >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* COLUMN 2: EN PROCESO (InProgress) */}
-              <div className="bg-[#20242d]/40 rounded-2xl border border-[#333a47]/50 p-4 flex flex-col">
-                <div className="flex justify-between items-center mb-4 px-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2.5 h-2.5 bg-[#0aa5b5] rounded-full"></div>
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                      En Proceso
-                    </h3>
-                  </div>
-                  <span className="bg-[#2a2f3a] px-2.5 py-0.5 rounded-full text-xs text-[#94a3b8] font-bold">
-                    {inProgressTasks}
-                  </span>
-                </div>
-                <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[60vh] md:max-h-[none]">
-                  {tasks
-                    .filter((t) => t.status === "InProgress")
-                    .map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          setSelectedTask(task);
-                          setEditForm({
-                            id: task.id,
-                            title: task.title,
-                            description: task.description,
-                            status: task.status,
-                            tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds:
-                              task.assignedUsers?.map((au) => au.userId) || [],
-                            assignedToNames:
-                              task.assignedUsers?.map(
-                                (au) => au.assignedToName,
-                              ) || [],
-                            isDisabled: task.isDisabled || false,
-                          });
-                        }}
-                        className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
-                      >
-                        <h4 className="text-sm font-semibold text-white leading-snug group-hover:text-[#22c1d3] transition-colors">
-                          {task.title}
-                        </h4>
-                        <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
-                          {task.description}
-                        </p>
-
-                        {task.tags && task.tags.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-[#333a47] flex flex-wrap gap-1.5">
-                            {task.tags.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border"
-                                style={{
-                                  backgroundColor: `${tag.color}15`,
-                                  color: tag.color,
-                                  borderColor: `${tag.color}30`,
-                                }}
-                              >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* COLUMN 3: EN ESPERA (Pending) */}
-              <div className="bg-[#20242d]/40 rounded-2xl border border-[#333a47]/50 p-4 flex flex-col">
-                <div className="flex justify-between items-center mb-4 px-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2.5 h-2.5 bg-[#c0914e] rounded-full"></div>
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                      En Espera
-                    </h3>
-                  </div>
-                  <span className="bg-[#2a2f3a] px-2.5 py-0.5 rounded-full text-xs text-[#94a3b8] font-bold">
-                    {pendingTasks}
-                  </span>
-                </div>
-                <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[60vh] md:max-h-[none]">
-                  {tasks
-                    .filter((t) => t.status === "Pending")
-                    .map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          setSelectedTask(task);
-                          setEditForm({
-                            id: task.id,
-                            title: task.title,
-                            description: task.description,
-                            status: task.status,
-                            tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds:
-                              task.assignedUsers?.map((au) => au.userId) || [],
-                            assignedToNames:
-                              task.assignedUsers?.map(
-                                (au) => au.assignedToName,
-                              ) || [],
-                            isDisabled: task.isDisabled || false,
-                          });
-                        }}
-                        className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
-                      >
-                        <h4 className="text-sm font-semibold text-white leading-snug group-hover:text-[#22c1d3] transition-colors">
-                          {task.title}
-                        </h4>
-                        <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
-                          {task.description}
-                        </p>
-
-                        {task.tags && task.tags.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-[#333a47] flex flex-wrap gap-1.5">
-                            {task.tags.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border"
-                                style={{
-                                  backgroundColor: `${tag.color}15`,
-                                  color: tag.color,
-                                  borderColor: `${tag.color}30`,
-                                }}
-                              >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {/* COLUMN 4: COMPLETADO (Completed) */}
-              <div className="bg-[#20242d]/40 rounded-2xl border border-[#333a47]/50 p-4 flex flex-col">
-                <div className="flex justify-between items-center mb-4 px-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2.5 h-2.5 bg-[#669a71] rounded-full"></div>
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                      Completado
-                    </h3>
-                  </div>
-                  <span className="bg-[#2a2f3a] px-2.5 py-0.5 rounded-full text-xs text-[#94a3b8] font-bold">
-                    {completedTasks}
-                  </span>
-                </div>
-                <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[60vh] md:max-h-[none]">
-                  {tasks
-                    .filter((t) => t.status === "Completed")
-                    .map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          setSelectedTask(task);
-                          setEditForm({
-                            id: task.id,
-                            title: task.title,
-                            description: task.description,
-                            status: task.status,
-                            tagIds: task.tags?.map((tg) => tg.id) || [],
-                            userIds:
-                              task.assignedUsers?.map((au) => au.userId) || [],
-                            assignedToNames:
-                              task.assignedUsers?.map(
-                                (au) => au.assignedToName,
-                              ) || [],
-                            isDisabled: task.isDisabled || false,
-                          });
-                        }}
-                        className="bg-[#20242d] p-4 rounded-xl border border-[#333a47] hover:border-[#0aa5b5] transition-all cursor-pointer shadow-md select-none group"
-                      >
-                        <h4 className="text-sm font-semibold text-white leading-snug group-hover:text-[#22c1d3] transition-colors line-through decoration-[#94a3b8]">
-                          {task.title}
-                        </h4>
-                        <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
-                          {task.description}
-                        </p>
-
-                        {task.tags && task.tags.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-[#333a47] flex flex-wrap gap-1.5">
-                            {task.tags.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="text-[9px] font-bold px-2.5 py-0.5 rounded-full border"
-                                style={{
-                                  backgroundColor: `${tag.color}15`,
-                                  color: tag.color,
-                                  borderColor: `${tag.color}30`,
-                                }}
-                              >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
-      {/* DETAILED VIEW MODAL */}
+      {/* DETAILED VIEW MODAL (Técnico: solo puede marcar criterios de aceptación) */}
       {selectedTask && editForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[1000px] overflow-hidden shadow-2xl animate-fadeInScale">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#333a47] bg-[#2a2f3a]">
+          <div className="bg-[#1d2330] rounded-2xl border border-[#333a47] w-full max-w-[760px] max-h-[92vh] overflow-hidden shadow-2xl animate-fadeInScale">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#333a47] bg-[#2a2f3a]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[#0aa5b5]/15 flex items-center justify-center text-[#0aa5b5]">
                   <CheckSquare size={18} />
@@ -885,7 +589,7 @@ export const DashboardUser = () => {
                   <p className="text-[10px] uppercase tracking-[0.2em] text-[#94a3b8]">
                     Tarea
                   </p>
-                  <h3 className="font-bold text-white text-sm">
+                  <h3 className="font-bold text-white text-sm truncate max-w-[420px]">
                     {selectedTask.title}
                   </h3>
                 </div>
@@ -901,79 +605,70 @@ export const DashboardUser = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_0.9fr]">
-              <form onSubmit={handleEditSubmit} className="p-6 space-y-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
-                    {getStatusLabel(editForm.status)}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#333a47] bg-[#1b2029]">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-[#0aa5b5]/30 bg-[#0aa5b5]/10 text-[#0aa5b5] text-[10px] font-bold uppercase tracking-wide">
+                  {getStatusLabel(editForm.status)}
+                </span>
+                {selectedTask.tags?.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center px-2 py-1 rounded-full border text-[9px] font-bold uppercase tracking-wide"
+                    style={{
+                      backgroundColor: `${tag.color}15`,
+                      color: tag.color,
+                      borderColor: `${tag.color}40`,
+                    }}
+                  >
+                    {tag.name}
                   </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
-                    {selectedTask.tags?.length || 0} etiquetas
-                  </span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full border border-[#333a47] bg-[#2a2f3a] text-[#94a3b8] text-[10px] font-bold uppercase tracking-wide">
-                    {selectedTask.assignedUsers?.length ||
-                      editForm.assignedToNames?.length ||
-                      0}{" "}
-                    miembros
-                  </span>
-                </div>
+                ))}
+              </div>
 
+              <button
+                type="button"
+                onClick={() => setShowTaskDetails((prev) => !prev)}
+                className="text-[10px] uppercase tracking-wide text-[#94a3b8] hover:text-white border border-[#333a47] rounded-lg px-3 py-2 bg-[#20242d]"
+              >
+                {showTaskDetails ? "Ocultar detalles" : "Mostrar detalles"}
+              </button>
+            </div>
+
+            <div
+              className={`grid grid-cols-1 ${showTaskDetails ? "lg:grid-cols-[1.55fr_0.95fr]" : ""}`}
+            >
+              <form
+                onSubmit={handleEditSubmit}
+                className="p-4 space-y-3 max-h-[72vh] overflow-y-auto"
+              >
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
                     Título
                   </label>
                   <input
                     type="text"
-                    required
                     value={editForm.title}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, title: e.target.value })
-                    }
-                    disabled={!isAdmin}
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75"
+                    disabled
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-sm text-white focus:outline-none disabled:opacity-75"
                   />
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Descripción técnica
-                  </label>
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, description: e.target.value })
-                    }
-                    disabled={!isAdmin}
-                    rows={4}
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
-                    placeholder="Detalles de la tarea..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                      Estado
+                      Responsable
                     </label>
-                    <select
-                      value={editForm.status}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, status: e.target.value })
-                      }
-                      className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5]"
-                    >
-                      <option value="ToDo">Por Hacer (ToDo)</option>
-                      <option value="InProgress">En Proceso</option>
-                      <option value="Pending">En Espera (Pending)</option>
-                      <option value="Completed">Completado</option>
-                    </select>
+                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#e2e8f0]">
+                      {editForm.assignedToNames?.length > 0
+                        ? editForm.assignedToNames.join(", ")
+                        : "Sin asignar"}
+                    </div>
                   </div>
-
                   <div>
                     <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
                       Fecha de creación
                     </label>
-                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
+                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8]">
                       {new Date(selectedTask.createdAt).toLocaleDateString()}
                     </div>
                   </div>
@@ -981,128 +676,42 @@ export const DashboardUser = () => {
 
                 <div>
                   <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
-                    Miembros asignados
-                  </label>
-                  {isAdmin ? (
-                    <div className="bg-[#12141a] border border-[#333a47] rounded-lg p-2.5">
-                      <select
-                        multiple
-                        value={editForm.userIds || []}
-                        onChange={(e) => {
-                          const selectedIds = Array.from(
-                            e.target.selectedOptions,
-                            (option) => option.value,
-                          );
-                          const selectedNames = users
-                            .filter((u) => selectedIds.includes(u.id || u._id))
-                            .map((u) =>
-                              `${u.firstName} ${u.surname || ""}`.trim(),
-                            );
-                          setEditForm({
-                            ...editForm,
-                            userIds: selectedIds,
-                            assignedToNames: selectedNames,
-                          });
-                        }}
-                        className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] min-h-[88px]"
-                      >
-                        {users.map((u) => (
-                          <option key={u.id || u._id} value={u.id || u._id}>
-                            {u.firstName} {u.surname} ({u.username})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8] select-none">
-                      {editForm.assignedToNames?.length > 0
-                        ? editForm.assignedToNames.join(", ")
-                        : "Sin asignar"}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
-                    Criterios de aceptación
+                    Descripción técnica
                   </label>
                   <textarea
-                    value={editForm.acceptanceCriteria || ""}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        acceptanceCriteria: e.target.value,
-                      })
-                    }
-                    disabled={!isAdmin}
-                    rows={4}
-                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#0aa5b5] disabled:opacity-75 resize-none"
-                    placeholder="Ejemplo:
-• Validar contraseña con mínimo 6 caracteres
-• Guardar la configuración del usuario
-• Mostrar mensaje de éxito"
+                    value={editForm.description || ""}
+                    disabled
+                    rows={3}
+                    className="w-full bg-[#12141a] border border-[#333a47] rounded-lg p-2.5 text-xs text-white focus:outline-none disabled:opacity-75 resize-none"
                   />
-                  <div className="mt-3 space-y-2 bg-[#12141a] border border-[#333a47] rounded-lg p-3">
-                    {parseChecklist(editForm.acceptanceCriteria || "")
-                      .length ? (
-                      parseChecklist(editForm.acceptanceCriteria || "").map(
-                        (item, index) => (
-                          <label
-                            key={`${item}-${index}`}
-                            className="flex items-center gap-2 text-xs text-[#e2e8f0]"
-                          >
-                            <input
-                              type="checkbox"
-                              checked
-                              readOnly
-                              className="h-3.5 w-3.5 rounded border-[#333a47] bg-[#20242d]"
-                            />
-                            <span>{item}</span>
-                          </label>
-                        ),
-                      )
-                    ) : (
-                      <span className="text-xs text-[#94a3b8]">
-                        Sin criterios
-                      </span>
-                    )}
-                  </div>
                 </div>
+
+                {/* Único campo editable por el técnico: marcar/desmarcar criterios */}
+                <AcceptanceChecklistField
+                  value={editForm.acceptanceCriteria || ""}
+                  disabled={false}
+                  maxItems={6}
+                  onChange={(nextValue) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      acceptanceCriteria: nextValue,
+                    }))
+                  }
+                />
 
                 <div>
-                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-2 uppercase tracking-wider">
-                    Etiquetas
+                  <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
+                    Estado
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => {
-                      const isChecked = editForm.tagIds?.includes(tag.id);
-                      return (
-                        <button
-                          type="button"
-                          key={tag.id}
-                          onClick={() =>
-                            isAdmin &&
-                            toggleTagSelection(editForm, setEditForm, tag.id)
-                          }
-                          className={`px-2.5 py-1.5 rounded-full text-[10px] font-bold border transition-all ${isChecked ? "border-transparent" : "border-[#333a47]"} ${isAdmin ? "cursor-pointer" : "cursor-default"}`}
-                          style={{
-                            backgroundColor: isChecked
-                              ? `${tag.color}25`
-                              : "#2a2f3a",
-                            color: tag.color,
-                            borderColor: isChecked
-                              ? `${tag.color}60`
-                              : "#333a47",
-                          }}
-                        >
-                          {tag.name}
-                        </button>
-                      );
-                    })}
+                  <div className="w-full bg-[#2a2f3a] border border-[#333a47] rounded-lg p-2.5 text-xs text-[#94a3b8]">
+                    {getStatusLabel(editForm.status)}{" "}
+                    <span className="text-[9px] text-[#64748b]">
+                      (solo el administrador puede cambiar el estado)
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-4 border-t border-[#333a47] mt-4">
+                <div className="flex justify-between items-center pt-3 border-t border-[#333a47]">
                   <div>
                     {isAdmin && (
                       <button
@@ -1137,55 +746,19 @@ export const DashboardUser = () => {
                 </div>
               </form>
 
-              <aside className="border-l border-[#333a47] bg-[#171d27] p-5">
-                <div className="flex items-center justify-between pb-3 border-b border-[#333a47]">
-                  <h4 className="text-sm font-bold text-white">
-                    Comentarios y Actividad
-                  </h4>
-                  <button
-                    type="button"
-                    className="text-[10px] uppercase tracking-wide text-[#94a3b8]"
-                  >
-                    Ocultar detalles
-                  </button>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {taskActivity.length === 0 ? (
-                    <div className="rounded-xl border border-[#333a47] bg-[#20242d] p-3 text-xs text-[#94a3b8]">
-                      Aún no hay actividad para esta tarea.
-                    </div>
-                  ) : (
-                    taskActivity.map((log) => (
-                      <div
-                        key={log.id}
-                        className="rounded-xl border border-[#333a47] bg-[#20242d] p-3"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 rounded-full bg-[#0aa5b5]/15 text-[#0aa5b5] flex items-center justify-center text-[10px] font-bold">
-                            {log.userName?.charAt(0)?.toUpperCase() || "E"}
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-xs font-semibold text-white">
-                              {log.userName}
-                            </p>
-                            <p className="text-[10px] text-[#94a3b8]">
-                              {new Date(log.createdAt).toLocaleDateString()} ·{" "}
-                              {new Date(log.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-xs text-[#dfe7f5] leading-relaxed">
-                          {log.description}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </aside>
+              {showTaskDetails && (
+                <TaskDetailSidebar
+                  editForm={editForm}
+                  tags={tags}
+                  canEdit={isAdmin}
+                  onTagChange={(tagId) =>
+                    setEditForm({
+                      ...editForm,
+                      tagIds: [tagId],
+                    })
+                  }
+                />
+              )}
             </div>
           </div>
         </div>
@@ -1328,13 +901,13 @@ export const DashboardUser = () => {
                           type="radio"
                           name="create-task-tag"
                           checked={isChecked}
-                          onChange={() =>
-                            toggleTagSelection(
-                              createForm,
-                              setCreateForm,
-                              tag.id,
-                            )
-                          }
+                          onChange={() => {
+                            const currentTagId = createForm.tagIds?.[0];
+                            setCreateForm({
+                              ...createForm,
+                              tagIds: currentTagId === tag.id ? [] : [tag.id],
+                            });
+                          }}
                           className="w-3.5 h-3.5 text-[#0aa5b5] bg-[#2a2f3a] border-[#333a47] focus:ring-0"
                         />
                         <span

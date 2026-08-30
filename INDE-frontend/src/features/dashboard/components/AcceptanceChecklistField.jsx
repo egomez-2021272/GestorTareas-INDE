@@ -3,11 +3,11 @@ import React from "react";
 const parseChecklistItems = (value = "") =>
   String(value || "")
     .split(/\n/)
-    .map((item) => item.trim())
+    .map((line) => line.trim())
     .filter(Boolean)
-    .map((item) => {
-      const checked = /^\[(x|X|✓|✔)\]/.test(item);
-      const label = item.replace(/^\[(?:x|X|✓|✔|\s)\]\s*/, "").trim();
+    .map((line) => {
+      const checked = /^\[(x|X|✓|✔)\]/.test(line);
+      const label = line.replace(/^\[(?:x|X|✓|✔|\s)\]\s*/, "").trim();
       return { label, checked };
     })
     .filter((item) => item.label)
@@ -18,12 +18,12 @@ const parseChecklistItems = (value = "") =>
 
 const serializeChecklistItems = (items = []) =>
   items
-    .filter((item) => item && (String(item.label || "").trim() || item.checked))
-    .map(
-      (item) =>
-        `${item.checked ? "[x]" : "[ ]"} ${String(item.label || "").trim()}`,
-    )
-    .filter((text) => text && text !== "[ ] ")
+    .map((item) => {
+      const label = String(item?.label ?? "").trim();
+      if (!label && !item?.checked) return null;
+      return `${item?.checked ? "[x]" : "[ ]"} ${label}`;
+    })
+    .filter(Boolean)
     .join("\n");
 
 const makeId = () =>
@@ -52,6 +52,7 @@ export const AcceptanceChecklistField = ({
         nextItems.length > 0
           ? nextItems
           : [{ id: makeId(), label: "", checked: false }];
+
       const same =
         normalized.length === current.length &&
         normalized.every((item, index) => {
@@ -68,20 +69,18 @@ export const AcceptanceChecklistField = ({
   }, [value]);
 
   const commitItems = (nextItems) => {
-    const cleaned = nextItems
-      .map((item) => ({
-        id: item.id || makeId(),
-        label: String(item.label || "").trim(),
-        checked: Boolean(item.checked),
-      }))
-      .filter((item) => item.label || item.checked);
+    const sanitized = nextItems.map((item) => ({
+      ...item,
+      id: item.id || makeId(),
+      label: String(item.label ?? ""),
+      checked: Boolean(item.checked),
+    }));
 
-    const finalItems =
-      cleaned.length > 0
-        ? cleaned
-        : [{ id: makeId(), label: "", checked: false }];
-    setItems(finalItems);
-    onChange?.(serializeChecklistItems(finalItems));
+    // Mantén items vacíos en el estado local para que el usuario pueda escribir
+    setItems(sanitized);
+
+    // Solo serializa items no-vacíos para el onChange del padre
+    onChange?.(serializeChecklistItems(sanitized));
   };
 
   const handleAdd = () => {
@@ -91,9 +90,10 @@ export const AcceptanceChecklistField = ({
 
   const handleItemChange = (index, patch) => {
     if (disabled) return;
-    commitItems(
-      items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
+    const nextItems = items.map((item, i) =>
+      i === index ? { ...item, ...patch } : item,
     );
+    commitItems(nextItems);
   };
 
   const handleRemove = (index) => {

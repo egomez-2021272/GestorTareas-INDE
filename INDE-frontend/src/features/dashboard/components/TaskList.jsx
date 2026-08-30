@@ -11,7 +11,7 @@ const columns = [
 export const TaskList = ({ tasks, onTaskSelect, users }) => {
   return (
     <div className="flex-1 flex flex-col min-h-0 animate-fadeIn">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 flex-1 min-h-[420px]">
         {columns.map((column) => {
           const columnTasks = tasks.filter(
             (task) => task.status === column.status && !task.isDisabled,
@@ -37,7 +37,7 @@ export const TaskList = ({ tasks, onTaskSelect, users }) => {
                 </span>
               </div>
 
-              <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[60vh] md:max-h-[none]">
+              <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[52vh] sm:max-h-[58vh] xl:max-h-[62vh]">
                 {columnTasks.map((task) => (
                   <TaskCard
                     key={task.id}
