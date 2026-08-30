@@ -35,6 +35,7 @@ public class TaskService : ITaskService
         {
             Title = createTaskDto.Title,
             Description = createTaskDto.Description,
+            AcceptanceCriteria = createTaskDto.AcceptanceCriteria,
             Status = createTaskDto.Status.ToEnum(),
             CreatedAt = DateTime.UtcNow
         };
@@ -79,6 +80,7 @@ public class TaskService : ITaskService
 
         task.Title = updateTaskDto.Title;
         task.Description = updateTaskDto.Description;
+        task.AcceptanceCriteria = updateTaskDto.AcceptanceCriteria;
         task.Status = updateTaskDto.Status.ToEnum();
         task.IsDisabled = updateTaskDto.IsDisabled;
         task.UpdatedAt = DateTime.UtcNow;

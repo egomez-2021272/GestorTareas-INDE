@@ -11,7 +11,7 @@ const columns = [
 export const TaskList = ({ tasks, onTaskSelect, users }) => {
   return (
     <div className="flex-1 flex flex-col min-h-0 animate-fadeIn">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 flex-1 min-h-[420px]">
         {columns.map((column) => {
           const columnTasks = tasks.filter(
             (task) => task.status === column.status && !task.isDisabled,
@@ -37,7 +37,7 @@ export const TaskList = ({ tasks, onTaskSelect, users }) => {
                 </span>
               </div>
 
-              <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[60vh] md:max-h-[none]">
+              <div className="space-y-3 flex-1 overflow-y-auto pr-1 max-h-[52vh] sm:max-h-[58vh] xl:max-h-[62vh]">
                 {columnTasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -58,37 +58,42 @@ export const TaskList = ({ tasks, onTaskSelect, users }) => {
 
 const TaskCard = ({ task, isCompleted, onSelect, users }) => {
   const { user: currentUser } = useAuthStore();
-  
+
   const getAssignedNames = () => {
-    // Usar la nueva estructura assignedUsers
     if (task.assignedUsers && task.assignedUsers.length > 0) {
-      const names = task.assignedUsers.map(au => {
-        if (au.userId === currentUser?.id) return "mí";
-        return au.assignedToName;
-      });
-      
+      const names = task.assignedUsers
+        .map((au) => {
+          if (String(au.userId) === String(currentUser?.id)) return "mí";
+          return au.assignedToName || "Asignado";
+        })
+        .filter(Boolean);
+
+      if (names.length === 0) return null;
       if (names.length === 1) {
-        return names[0] === "mí" ? "Asignado a mí" : `Asignado a: ${names[0]}`;
-      } else {
-        return `Asignado a: ${names.join(', ')}`;
+        return names[0] === "mí" ? "Yo" : names[0];
       }
+      if (names.length <= 2) {
+        return names.join(" + ");
+      }
+      return `${names.slice(0, 2).join(" + ")} +${names.length - 2}`;
     }
-    
-    // Compatibilidad con estructura antigua
+
     if (task.assignedToName) {
-      if (task.userId === currentUser?.id) return "Asignado a mí";
-      return `Asignado a: ${task.assignedToName}`;
+      if (task.userId === currentUser?.id) return "Yo";
+      return task.assignedToName;
     }
-    
+
     if (!task.userId) return null;
-    if (task.userId === currentUser?.id) return "Asignado a mí";
+    if (String(task.userId) === String(currentUser?.id)) return "Yo";
     if (users && users.length > 0) {
-      const found = users.find(u => (u.id || u._id) === task.userId);
-      if (found) return `Asignado a: ${found.firstName}`;
+      const found = users.find(
+        (u) => String(u.id || u._id) === String(task.userId),
+      );
+      if (found) return `${found.firstName} ${found.surname || ""}`.trim();
     }
     return "Asignado";
   };
-  
+
   const assignedName = getAssignedNames();
 
   return (
@@ -103,12 +108,12 @@ const TaskCard = ({ task, isCompleted, onSelect, users }) => {
           {task.title}
         </h4>
         {assignedName && (
-          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 bg-[#0aa5b5]/10 border border-[#0aa5b5]/20 text-[#0aa5b5] rounded">
+          <span className="shrink-0 max-w-[90px] truncate text-[9px] font-bold px-1.5 py-0.5 bg-[#0aa5b5]/10 border border-[#0aa5b5]/20 text-[#0aa5b5] rounded">
             {assignedName}
           </span>
         )}
       </div>
-      <p className="text-xs text-[#94a3b8] mt-2 line-clamp-2 leading-relaxed">
+      <p className="text-xs text-[#94a3b8] mt-2 line-clamp-3 leading-relaxed">
         {task.description}
       </p>
 
