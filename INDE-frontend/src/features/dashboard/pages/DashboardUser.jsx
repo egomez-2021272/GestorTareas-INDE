@@ -19,6 +19,7 @@ import { UsersTab } from "../components/UsersTab";
 import { NotificationsPanel } from "../components/NotificationsPanel";
 import { AcceptanceChecklistField } from "../components/AcceptanceChecklistField";
 import { TaskDetailSidebar } from "../components/TaskDetailSidebar";
+import toast from "react-hot-toast";
 
 export const DashboardUser = () => {
   const { user, logout, users, fetchUsers } = useAuthStore();
@@ -59,6 +60,7 @@ export const DashboardUser = () => {
   };
 
   const isAdmin = user?.role === "ADMIN_ROLE";
+  const canCreateTasks = user?.role === "ADMIN_ROLE" || user?.role === "USER_ROLE";
 
   // Cálculos estadísticos basados en base de datos
   const totalTasks = tasks.length;
@@ -86,16 +88,20 @@ export const DashboardUser = () => {
     e.preventDefault();
     if (!createForm.title.trim()) return;
 
-    addTask(createForm);
-    setIsCreateOpen(false);
-    setCreateForm({
-      title: "",
-      description: "",
-      status: "ToDo",
-      tagIds: [],
-      userIds: [],
-      assignedToNames: [],
-    });
+    try {
+      addTask(createForm);
+      setIsCreateOpen(false);
+      setCreateForm({
+        title: "",
+        description: "",
+        status: "ToDo",
+        tagIds: [],
+        userIds: [],
+        assignedToNames: [],
+      });
+    } catch (error) {
+      toast.error(error.message || "Error al crear tarea");
+    }
   };
 
   // Guardar cambios en tarea (Técnico): SOLO puede actualizar los
@@ -232,7 +238,9 @@ export const DashboardUser = () => {
                 </span>{" "}
                 • Rol:{" "}
                 <span className="font-semibold text-[#0aa5b5]">
-                  {isAdmin ? "Administrador" : "Técnico"}
+                  {user?.role === "ADMIN_ROLE" ? "Administrador" : 
+                   user?.role === "PARTIDARIO_ROLE" ? "Partidario" :
+                   user?.role === "JUEZ_ROLE" ? "Juez" : "Técnico"}
                 </span>
               </p>
             </div>
@@ -240,7 +248,7 @@ export const DashboardUser = () => {
 
           <div className="flex items-center space-x-4 self-end md:self-auto">
             <NotificationsPanel />
-            {activeTab === "tasks" && (
+            {activeTab === "tasks" && canCreateTasks && (
               <button
                 onClick={() => setIsCreateOpen(true)}
                 className="bg-[#0aa5b5] hover:bg-[#22c1d3] text-white flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md active:scale-95"
@@ -260,7 +268,9 @@ export const DashboardUser = () => {
                   {user?.name}
                 </p>
                 <p className="text-[#94a3b8]">
-                  {isAdmin ? "Administrador INDE" : "Técnico de Campo"}
+                  {user?.role === "ADMIN_ROLE" ? "Administrador INDE" : 
+                   user?.role === "PARTIDARIO_ROLE" ? "Partidario" :
+                   user?.role === "JUEZ_ROLE" ? "Juez" : "Técnico de Campo"}
                 </p>
               </div>
             </div>

@@ -77,17 +77,39 @@ export const setPasswordOnActivationRecord = async (token, newPassword) => {
 };
 
 export const activateUserAccount = async (token) => {
+  // First, get the user to check if they have the special admin-created marker
+  const { rows: checkRows } = await pool.query(
+    "SELECT reset_password_token FROM users WHERE activation_token = $1",
+    [token],
+  );
+  
+  if (!checkRows[0]) {
+    const error = new Error("Este enlace ya fue usado o expiró.");
+    error.code = "ACTIVATION_TOKEN_INVALID";
+    throw error;
+  }
+  
+  const hasSpecialToken = checkRows[0].reset_password_token === '00000000-0000-0000-0000-000000000000';
+  
+  // Update user - preserve the special token if it exists
   const { rows } = await pool.query(
     `UPDATE users SET is_active = TRUE, activation_token = NULL, updated_at = NOW()
          WHERE activation_token = $1 RETURNING *`,
     [token],
   );
-  if (!rows[0]) {
-    const error = new Error("Este enlace ya fue usado o expiró.");
-    error.code = "ACTIVATION_TOKEN_INVALID";
-    throw error;
+  
+  const user = toUser(rows[0]);
+  
+  // If the user had the special token, make sure it's preserved
+  if (hasSpecialToken && user.resetPasswordToken !== '00000000-0000-0000-0000-000000000000') {
+    await pool.query(
+      "UPDATE users SET reset_password_token = '00000000-0000-0000-0000-000000000000' WHERE id = $1",
+      [user.id]
+    );
+    user.resetPasswordToken = '00000000-0000-0000-0000-000000000000';
   }
-  return { alreadyActive: false, user: toUser(rows[0]) };
+  
+  return { alreadyActive: false, user };
 };
 
 export const loginUser = async (username, password) => {
@@ -117,7 +139,9 @@ export const loginUser = async (username, password) => {
       console.error("Error al enviar email de bienvenida:", error),
     );
   }
-  return publicUser(user);
+  
+  // Return the full user object (including resetPasswordToken) so controller can calculate requiresPasswordChange
+  return user;
 };
 
 export const changePassword = async (userId, currentPassword, newPassword) => {

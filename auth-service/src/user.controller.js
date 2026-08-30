@@ -108,6 +108,17 @@ export const login = async (req, res) => {
     try {
         const { username, password } = req.body;
         const user = await loginUser(username, password);
+        
+        // Calculate requiresPasswordChange based on resetPasswordToken
+        let requiresPasswordChange = false;
+        if (user.resetPasswordToken === '00000000-0000-0000-0000-000000000000') {
+            requiresPasswordChange = true;
+        }
+        
+        // Eximir al admin base de este cambio obligatorio
+        if (user.email === process.env.SEEDER_ADMIN_EMAIL || user.username === 'admin') {
+            requiresPasswordChange = false;
+        }
 
         const token = jwt.sign(
             {
@@ -147,19 +158,21 @@ export const login = async (req, res) => {
             console.error('daily-positive-service no está disponible o tardó demasiado:', err.message);
         }
 
-        let requiresPasswordChange = false;
-        if (user.resetPasswordToken === '00000000-0000-0000-0000-000000000000') {
-            requiresPasswordChange = true;
-        }
-        // Eximir al admin base de este cambio obligatorio
-        if (user.email === process.env.SEEDER_ADMIN_EMAIL || user.username === 'admin') {
-            requiresPasswordChange = false;
-        }
 
+
+        // Clean user object for response (remove sensitive fields)
+        const { 
+            password: userPassword, 
+            activationToken, 
+            resetPasswordToken, 
+            resetPasswordExpires, 
+            ...userForResponse 
+        } = user;
+        
         return res.status(200).json({
             success: true,
             message: 'Login exitoso',
-            data: { user, token, dailyMessage, requiresPasswordChange }
+            data: { user: userForResponse, token, dailyMessage, requiresPasswordChange }
         });
 
     } catch (e) {

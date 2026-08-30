@@ -111,7 +111,7 @@ const sendEmail = async ({ to, subject, html, recipientName = '' }) => {
 };
 
 export const sendActivationEmail = async (email, token, firstName, createdByAdmin = false, tempPassword = null, username = null) => {
-    const activationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/activate/${token}${createdByAdmin ? '?setup=true' : ''}`;
+    const activationLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/activate/${token}`;
     const loginLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login`;
 
     let contentHtml = '';
