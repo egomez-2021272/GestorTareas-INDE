@@ -24,7 +24,6 @@ export const LoginForm = () => {
       } else {
         navigate("/dashboard");
       }
-      console.log("Login successful");
     }
   };
 

@@ -534,7 +534,9 @@ export const DashboardAdmin = () => {
                 </span>{" "}
                 • Rol:{" "}
                 <span className="font-semibold text-[#0aa5b5]">
-                  {isAdmin ? "Administrador" : "Técnico"}
+                  {user?.role === "ADMIN_ROLE" ? "Administrador" : 
+                   user?.role === "PARTIDARIO_ROLE" ? "Partidario" :
+                   user?.role === "JUEZ_ROLE" ? "Juez" : "Técnico"}
                 </span>
               </p>
             </div>
@@ -562,7 +564,9 @@ export const DashboardAdmin = () => {
                   {user?.name}
                 </p>
                 <p className="text-[#94a3b8]">
-                  {isAdmin ? "Administrador INDE" : "Técnico de Campo"}
+                  {user?.role === "ADMIN_ROLE" ? "Administrador INDE" : 
+                   user?.role === "PARTIDARIO_ROLE" ? "Partidario" :
+                   user?.role === "JUEZ_ROLE" ? "Juez" : "Técnico de Campo"}
                 </p>
               </div>
             </div>

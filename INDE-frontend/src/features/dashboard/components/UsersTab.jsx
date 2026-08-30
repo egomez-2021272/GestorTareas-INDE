@@ -56,7 +56,7 @@ export const UsersTab = () => {
       return;
     }
 
-    if (window.confirm("¿Cambiar estado de activación de este usuario?")) {
+    if (window.confirm("¿Estás seguro de que deseas desactivar a este usuario?")) {
       toggleUserStatus(id);
     }
   };
@@ -151,7 +151,10 @@ export const UsersTab = () => {
               >
                 <option value="USER_ROLE">Técnico</option>
                 <option value="ADMIN_ROLE">Administrador</option>
+                <option value="PARTIDARIO_ROLE">Partidario (Sin crear tareas)</option>
+                <option value="JUEZ_ROLE">Juez (Sin crear tareas)</option>
               </select>
+              <p className="text-[9px] text-[#94a3b8] mt-1">Los roles Partidario y Juez no pueden crear tareas</p>
             </div>
             <div>
               <label className="text-[10px] font-bold text-[#94a3b8] block mb-1 uppercase tracking-wider">
@@ -212,6 +215,10 @@ export const UsersTab = () => {
                     <span className="flex items-center space-x-1">
                       {u.role === "ADMIN_ROLE" ? (
                         <Shield size={14} className="text-[#c0914e]" />
+                      ) : u.role === "PARTIDARIO_ROLE" ? (
+                        <Shield size={14} className="text-[#c95d5d]" />
+                      ) : u.role === "JUEZ_ROLE" ? (
+                        <Shield size={14} className="text-[#669a71]" />
                       ) : (
                         <UserIcon size={14} className="text-[#0aa5b5]" />
                       )}
@@ -219,10 +226,16 @@ export const UsersTab = () => {
                         className={
                           u.role === "ADMIN_ROLE"
                             ? "text-[#c0914e] font-bold text-xs"
+                            : u.role === "PARTIDARIO_ROLE"
+                            ? "text-[#c95d5d] font-bold text-xs"
+                            : u.role === "JUEZ_ROLE"
+                            ? "text-[#669a71] font-bold text-xs"
                             : "text-[#0aa5b5] font-bold text-xs"
                         }
                       >
-                        {u.role === "ADMIN_ROLE" ? "Admin" : "Técnico"}
+                        {u.role === "ADMIN_ROLE" ? "Admin" : 
+                         u.role === "PARTIDARIO_ROLE" ? "Partidario" :
+                         u.role === "JUEZ_ROLE" ? "Juez" : "Técnico"}
                       </span>
                     </span>
                   </td>
