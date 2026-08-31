@@ -36,6 +36,11 @@ public class NotificationRepository : INotificationRepository
         _context.Notifications.Update(notification);
     }
 
+    public void DeleteNotification(Notification notification)
+    {
+        _context.Notifications.Remove(notification);
+    }
+
     public async Task<bool> MarkAsReadAsync(Guid id)
     {
         var notification = await _context.Notifications.FindAsync(id);

@@ -40,6 +40,13 @@ public class NotificationsController : ControllerBase
         return CreatedAtAction(nameof(GetNotificationById), new { id = createdNotification.Id }, createdNotification);
     }
 
+    [HttpPost("with-email")]
+    public async Task<ActionResult<NotificationDto>> CreateNotificationWithEmail([FromBody] CreateNotificationWithEmailDto dto)
+    {
+        var createdNotification = await _notificationService.CreateNotificationWithEmailAsync(dto.Notification, dto.UserEmail, dto.UserName);
+        return CreatedAtAction(nameof(GetNotificationById), new { id = createdNotification.Id }, createdNotification);
+    }
+
     [HttpPut("{id:guid}/mark-read")]
     public async Task<IActionResult> MarkAsRead(Guid id)
     {

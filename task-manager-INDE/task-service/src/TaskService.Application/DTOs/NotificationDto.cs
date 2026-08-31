@@ -20,3 +20,10 @@ public class CreateNotificationDto
     public string Type { get; set; } = "TASK_ASSIGNMENT";
     public Guid? RelatedTaskId { get; set; }
 }
+
+public class CreateNotificationWithEmailDto
+{
+    public CreateNotificationDto Notification { get; set; } = new();
+    public string UserEmail { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+}

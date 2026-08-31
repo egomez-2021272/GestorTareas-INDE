@@ -10,6 +10,7 @@ export const NotificationsPanel = () => {
     loading, 
     unreadCount, 
     fetchNotifications, 
+    createNotification,
     markAsRead, 
     markAllAsRead, 
     deleteNotification 

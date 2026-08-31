@@ -9,8 +9,10 @@ import {
     updateProfileRecord,
     getAllUsersRecord,
     toggleUserStatusRecord,
-    deleteUserRecord
+    deleteUserRecord,
+    findById
 } from "./user.services.js";
+import { sendTaskNotificationEmail } from "../helpers/email.helper.js";
 import jwt from 'jsonwebtoken';
 
 export const createUser = async (req, res) => {
@@ -315,6 +317,69 @@ export const updateProfile = async (req, res) => {
         return res.status(e.statusCode || 500).json({
             success: false,
             message: 'Error al actualizar el perfil',
+            error: e.message
+        });
+    }
+};
+
+export const sendNotificationEmail = async (req, res) => {
+    try {
+        const { email, firstName, notificationTitle, notificationMessage, notificationType } = req.body;
+
+        if (!email || !notificationTitle || !notificationMessage) {
+            return res.status(400).json({
+                success: false,
+                message: 'Faltan campos requeridos: email, notificationTitle, notificationMessage'
+            });
+        }
+
+        await sendTaskNotificationEmail(email, firstName, notificationTitle, notificationMessage, notificationType);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Correo de notificación enviado exitosamente'
+        });
+    } catch (e) {
+        return res.status(500).json({
+            success: false,
+            message: 'Error al enviar correo de notificación',
+            error: e.message
+        });
+    }
+};
+
+export const getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await findById(id);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Usuario no encontrado'
+            });
+        }
+
+        const safeUser = {
+            password: user.password,
+            activationToken: user.activationToken,
+            resetPasswordToken: user.resetPasswordToken,
+            resetPasswordExpires: user.resetPasswordExpires,
+            ...user
+        };
+        delete safeUser.password;
+        delete safeUser.activationToken;
+        delete safeUser.resetPasswordToken;
+        delete safeUser.resetPasswordExpires;
+
+        return res.status(200).json({
+            success: true,
+            data: safeUser
+        });
+    } catch (e) {
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener usuario',
             error: e.message
         });
     }

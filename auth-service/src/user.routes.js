@@ -11,7 +11,9 @@ import {
     updateProfile,
     getAllUsers,
     toggleUserStatus,
-    deleteUser
+    deleteUser,
+    sendNotificationEmail,
+    getUserById
 } from './user.controller.js';
 import { validateCreateUser, validateLogin, validateChangePassword, validateForgotPassword, validateResetPassword, validateUpdateProfile } from '../middlewares/user-validator.js'
 import { validateJWT } from '../middlewares/validate-JWT.js';
@@ -225,5 +227,9 @@ router.put('/profile', validateJWT, validateUpdateProfile, updateProfile);
 router.get('/users', validateJWT, validateRole('ADMIN_ROLE'), getAllUsers);
 router.patch('/users/:id/toggle-status', validateJWT, validateRole('ADMIN_ROLE'), toggleUserStatus);
 router.delete('/users/:id', validateJWT, validateRole('ADMIN_ROLE'), deleteUser);
+
+router.post('/send-notification-email', sendNotificationEmail);
+
+router.get('/users/:id', getUserById);
 
 export default router;

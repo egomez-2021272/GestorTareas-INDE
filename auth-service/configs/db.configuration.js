@@ -21,7 +21,7 @@ const initializeSchema = async () => {
             email VARCHAR(255) UNIQUE NOT NULL,
             username VARCHAR(40) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
-            role VARCHAR(20) NOT NULL DEFAULT 'USER_ROLE' CHECK (role IN ('ADMIN_ROLE', 'USER_ROLE', 'PARTIDARIO_ROLE', 'JUEZ_ROLE')),
+            role VARCHAR(20) NOT NULL DEFAULT 'USER_ROLE' CHECK (role IN ('ADMIN_ROLE', 'USER_ROLE')),
             is_active BOOLEAN NOT NULL DEFAULT FALSE,
             activation_token UUID,
             reset_password_token UUID,
@@ -41,7 +41,12 @@ const initializeSchema = async () => {
         // Add the new constraint with all roles
         await pool.query(`
             ALTER TABLE users ADD CONSTRAINT users_role_check 
-            CHECK (role IN ('ADMIN_ROLE', 'USER_ROLE', 'PARTIDARIO_ROLE', 'JUEZ_ROLE'))
+            CHECK (role IN ('ADMIN_ROLE', 'USER_ROLE'))
+        `);
+        
+        // Migrate existing users with PARTIDARIO_ROLE or JUEZ_ROLE to USER_ROLE
+        await pool.query(`
+            UPDATE users SET role = 'USER_ROLE' WHERE role IN ('PARTIDARIO_ROLE', 'JUEZ_ROLE')
         `);
     } catch (error) {
         console.log('Note: Role constraint update may not be needed for new installations');
