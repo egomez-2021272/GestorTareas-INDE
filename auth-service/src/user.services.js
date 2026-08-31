@@ -25,6 +25,8 @@ const findById = async (id) => {
   return toUser(rows[0]);
 };
 
+export { findById };
+
 export const createUserRecord = async ({
   userData,
   createdByAdmin = false,

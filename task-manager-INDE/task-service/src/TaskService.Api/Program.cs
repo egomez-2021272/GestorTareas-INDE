@@ -28,6 +28,9 @@ builder.Services.AddControllers(options =>
     o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 });
 
+// Add HttpClient for making requests to auth service
+builder.Services.AddHttpClient();
+
 // Configure services through extension methods
 builder.Services.AddApiDocumentation();
 builder.Services.AddApplicationServices(builder.Configuration);

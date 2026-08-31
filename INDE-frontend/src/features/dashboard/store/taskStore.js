@@ -72,8 +72,8 @@ export const useTaskStore = create((set, get) => ({
     const { user } = useAuthStore.getState();
     
     // Check if user has permission to create tasks
-    if (user?.role === "PARTIDARIO_ROLE" || user?.role === "JUEZ_ROLE") {
-      const error = new Error("Los usuarios con rol Partidario o Juez no tienen permisos para crear tareas. Contacta al administrador.");
+    if (user?.role === "USER_ROLE") {
+      const error = new Error("Los usuarios con rol Técnico no tienen permisos para crear tareas. Contacta al administrador.");
       error.code = "INSUFFICIENT_PERMISSIONS";
       throw error;
     }

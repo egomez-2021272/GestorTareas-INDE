@@ -23,6 +23,27 @@ export const useNotificationStore = create((set, get) => ({
     }
   },
 
+  createNotification: async (notificationData, userEmail, userName) => {
+    try {
+      const payload = {
+        notification: notificationData,
+        userEmail: userEmail,
+        userName: userName
+      };
+      const response = await axios.post(`${API_URL}/notifications/with-email`, payload);
+      
+      set((state) => ({
+        notifications: [response.data, ...state.notifications],
+        unreadCount: state.unreadCount + 1
+      }));
+      
+      return { success: true };
+    } catch (error) {
+      console.error("Error al crear notificación:", error);
+      return { success: false, error: error.message };
+    }
+  },
+
   markAsRead: async (notificationId) => {
     try {
       await axios.put(`${API_URL}/notifications/${notificationId}/mark-read`);

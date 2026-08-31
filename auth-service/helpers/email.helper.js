@@ -62,6 +62,9 @@ const createTransporter = () => {
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
+        },
+        tls: {
+            rejectUnauthorized: false // Para desarrollo, se puede remover en producción
         }
     });
 };
@@ -225,4 +228,48 @@ export const sendPasswordChangedEmail = async (email, firstName) => {
     } catch (error) {
         console.error('Error al enviar email de confirmacion:', error);
     }
+};
+
+export const sendNotificationEmail = async (email, firstName, notificationTitle, notificationMessage, notificationType = 'GENERAL') => {
+    const iconColor = notificationType === 'TASK_ASSIGNMENT' ? '#0aa5b5' : 
+                     notificationType === 'TASK_UPDATE' ? '#c0914e' : 
+                     notificationType === 'SYSTEM' ? '#669a71' : '#c95d5d';
+    
+    const typeLabel = notificationType === 'TASK_ASSIGNMENT' ? 'Asignación de Tarea' : 
+                     notificationType === 'TASK_UPDATE' ? 'Actualización de Tarea' : 
+                     notificationType === 'SYSTEM' ? 'Sistema' : 'Notificación';
+
+    const html = emailLayout({
+        title: notificationTitle,
+        content: `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div style="display: inline-block; background-color: ${iconColor}; color: white; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                    ${typeLabel}
+                </div>
+            </div>
+            
+            <div style="background-color: ${BRAND.panelLight}; border-left: 4px solid ${iconColor}; border-radius: 8px; padding: 20px; margin: 24px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <p style="margin: 0; color: ${BRAND.text}; line-height: 1.8; font-size: 15px;">${notificationMessage}</p>
+            </div>
+            
+            <div style="margin-top: 24px; padding: 16px; background-color: ${BRAND.background}; border-radius: 8px; border: 1px solid ${BRAND.border};">
+                <p style="margin: 0; color: ${BRAND.muted}; font-size: 12px; text-align: center;">
+                    <strong>¿Tienes preguntas?</strong> Contacta a tu administrador del sistema.
+                </p>
+            </div>
+        `,
+        footer: 'Esta notificación fue generada automáticamente por el sistema INDE-task\'s. No respondas a este correo.'
+    });
+
+    try {
+        await sendEmail({ to: email, subject: `${notificationTitle} - ${APP_NAME}`, html, recipientName: firstName });
+        console.log(`[Email Helper] Notificación enviada a ${email}`);
+    } catch (error) {
+        console.error('Error al enviar email de notificación:', error);
+        throw new Error('Error al enviar el correo de notificación');
+    }
+};
+
+export const sendTaskNotificationEmail = async (email, firstName, notificationTitle, notificationMessage, notificationType = 'GENERAL') => {
+    return await sendNotificationEmail(email, firstName, notificationTitle, notificationMessage, notificationType);
 };
